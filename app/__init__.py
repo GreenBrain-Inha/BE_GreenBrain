@@ -1,0 +1,1 @@
+"""GreenBrain FastAPI application package."""
