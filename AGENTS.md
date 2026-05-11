@@ -32,7 +32,7 @@
 
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것. (TDD)
 - 변경 범위는 이슈 또는 harness step에 맞추고 관련 없는 기능을 추가하지 말 것.
-- 브랜치는 이슈가 있으면 `743hw4n/feat/<이슈번호>`, 이슈가 없으면 `743hw4n/feat/<작업명>` 형식을 따를 것.
+- 브랜치는 `<사용자명>/<작업종류>/<이슈번호 또는 x>/<작업내용>` 형식을 따를 것. 예: `743hw4n/feat/1/signup`, `743hw4n/chore/x/database-tables`
 - 커밋 메시지는 conventional commits 형식을 따를 것. 예: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
 
 ## 명령어
