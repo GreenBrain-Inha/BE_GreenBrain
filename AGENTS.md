@@ -1,58 +1,85 @@
-# GreenBrain Codex 작업 지침
+# GreenBrain Agent Instructions
 
-## 참고 문서
+이 파일은 모든 LLM/agent가 먼저 읽는 공통 진입점이다. 세부 workflow, agent, skill 문서는 `.agents/` 아래에 둔다.
 
-- 제품 요구사항: `docs/PRD.md`
+## 필수 참조 문서
+
+작업 전 필요한 문서를 먼저 읽는다.
+
+- 제품/범위: `docs/references/PRD.md`, `docs/references/MVP_SCOPE.md`
 - 아키텍처: `docs/ARCHITECTURE.md`
 - 설계 결정: `docs/ADR.md`
-- Harness 워크플로우: `.claude/commands/harness.md`
-- 상세 기능 SPEC: `specs/ `
-
+- 기능별 계약: `docs/specs/`
+- 현재 DB 요약: `docs/generated/db-schema.md`
 
 ## 기술 스택
 
-- 프론트엔드: Next.js, TypeScript, shadcn, Tailwind CSS
-- 백엔드: FastAPI, Python 3.11+
-- 데이터베이스: Supabase / PostgreSQL, SQLAlchemy ORM, Alembic
+- Frontend: Next.js, TypeScript, shadcn, Tailwind CSS
+- Backend: FastAPI, Python 3.11+
+- Database: Supabase / PostgreSQL, SQLAlchemy ORM, Alembic
 - AI: OpenAI GPT-4o mini
-- 탄소 계산: ecologits
-- 파일 저장: MVP는 로컬 파일시스템, 프로덕션은 S3 호환 스토리지
+- Carbon accounting: ecologits
+- File storage: local filesystem for MVP, S3-compatible storage for production
 
-## 아키텍처 규칙
+## 핵심 아키텍처 규칙
 
-- CRITICAL: OpenAI와 ecologits 호출은 `services/`에서만 처리하고 `routers/`에서 직접 호출하지 말 것.
-- CRITICAL: 토큰 차감과 보상 계산은 `services/reward.py`, `services/daily_reset.py` 경계 안에서만 처리할 것.
-- CRITICAL: 파일 저장은 `services/storage.py`의 `FileStorage` 인터페이스를 통해서만 처리할 것.
-- CRITICAL: 클라이언트 컴포넌트에서 OpenAI, ecologits, Supabase service role key 등 외부 API/비밀 키를 직접 호출하지 말 것.
-- `routers/`는 입력 검증 후 service 호출만 담당하고 비즈니스 로직을 두지 말 것.
-- API 요청/응답은 `schemas/`의 Pydantic 스키마를 사용할 것.
-- DB 모델 변경 시 Alembic 마이그레이션을 함께 작성할 것.
+- OpenAI와 ecologits 호출은 `services/`에서만 처리하고 `routers/`에서 직접 호출하지 않는다.
+- 토큰 차감과 보상 계산은 `services/reward.py`, `services/daily_reset.py` 경계 안에서만 처리한다.
+- 파일 저장은 `services/storage.py`의 `FileStorage` 인터페이스를 통해서만 처리한다.
+- 클라이언트 컴포넌트에서 OpenAI, ecologits, Supabase service role key 등 외부 API/비밀 키를 직접 호출하지 않는다.
+- `routers/`는 입력 검증 후 service 호출만 담당하고 비즈니스 로직을 두지 않는다.
+- API 요청/응답은 `schemas/`의 Pydantic 스키마를 사용한다.
+- DB 모델 변경 시 Alembic migration을 함께 작성한다.
 
-## 개발 프로세스
+## 협업 담당 영역
 
-- CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것. (TDD)
-- 변경 범위는 이슈 또는 harness step에 맞추고 관련 없는 기능을 추가하지 말 것.
-- 브랜치는 `<사용자명>/<작업종류>/<이슈번호 또는 x>/<작업내용>` 형식을 따를 것. 예: `743hw4n/feat/1/signup`, `743hw4n/chore/x/database-tables`
-- 커밋 메시지는 conventional commits 형식을 따를 것. 예: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
+| Owner | Area | Features |
+| --- | --- | --- |
+| 장태환 | Backend | 사용자 인증, 온보딩, 채팅 API, ecologits 연동 |
+| 김찬혁 | Backend | 챌린지 생성, 챌린지 사진 인증, 파일 업로드 |
 
-## 명령어
+담당자 지정 규칙:
+
+- 회원가입, 로그인, 로그아웃, JWT, 온보딩, 채팅, OpenAI/ecologits 이슈는 장태환을 owner로 지정한다.
+- 챌린지 생성, 챌린지 수락/완료, 사진 인증, 파일 저장, 업로드 이슈는 김찬혁을 owner로 지정한다.
+- 토큰 보상/차감처럼 영역이 만나는 작업은 primary owner와 reviewer를 함께 지정한다.
+
+## 개발 규칙
+
+- 새 기능은 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성한다.
+- 변경 범위는 GitHub issue 또는 `docs/exec-plans/active/*`에 맞춘다.
+- 관련 없는 기능 추가나 리팩터링을 하지 않는다.
+- 브랜치는 `{owner-id}/{type}/{issue-number}/{slug}` 형식을 따른다. 예: `743hw4n/feat/1/signup`
+- 커밋 메시지는 conventional commits 형식을 따른다. 예: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
+
+## Workflows, Agents, Skills
+
+- Issue workflow: `.agents/workflows/issue-workflow.md`
+- Implementation agent: `.agents/agents/implementation-agent.md`
+- Test agent: `.agents/agents/test-agent.md`
+- Review agent: `.agents/agents/review-agent.md`
+- Issue creation skill: `.agents/skills/issue-create/SKILL.md`
+- PR creation skill: `.agents/skills/pr-create/SKILL.md`
+- FastAPI skill: `.agents/skills/fastapi/SKILL.md`
+
+## Commands
 
 ```bash
-# 프론트엔드 개발 서버 실행
-npm run dev
-
-# 프론트엔드 프로덕션 빌드
-npm run build
-
-# 프론트엔드 린트 검사
-npm run lint
-
-# 프론트엔드 테스트 실행
-npm run test
-
-# FastAPI 백엔드 개발 서버 실행
+# Backend development server
 python3 -m uvicorn app.main:app --reload
 
-# Python 테스트 실행
+# Python tests
 python3 -m pytest
+
+# Frontend development server
+npm run dev
+
+# Frontend production build
+npm run build
+
+# Frontend lint
+npm run lint
+
+# Frontend tests
+npm run test
 ```

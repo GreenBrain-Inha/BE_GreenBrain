@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 import bcrypt
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
+
+from jose import jwt
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -14,6 +20,11 @@ PASSWORD_POLICY_MESSAGE = (
     "Password must be at least 8 characters, include uppercase, lowercase, "
     "and number, and be at most 72 bytes"
 )
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
+JWT_ALGORITHM = "HS256"
+JWT_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+LOGIN_MAX_FAILED_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60
 
 
 class EmailAlreadyExists(Exception):
@@ -22,6 +33,27 @@ class EmailAlreadyExists(Exception):
 
 class PasswordPolicyViolation(Exception):
     """Raised when a password does not satisfy the signup policy."""
+
+
+class InvalidCredentials(Exception):
+    """Raised when login credentials cannot authenticate a user."""
+
+
+class LoginTemporarilyLocked(Exception):
+    """Raised when an email and IP pair is temporarily locked."""
+
+
+class JwtSecretNotConfigured(Exception):
+    """Raised when JWT signing cannot be configured."""
+
+
+@dataclass
+class LoginAttemptState:
+    failed_count: int = 0
+    locked_until: datetime | None = None
+
+
+_login_attempts: dict[tuple[str, str], LoginAttemptState] = {}
 
 
 def normalize_email(email: str) -> str:
@@ -43,6 +75,70 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def get_jwt_secret() -> str:
+    secret = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET")
+    if not secret:
+        raise JwtSecretNotConfigured("JWT_SECRET_KEY or JWT_SECRET must be configured")
+    return secret
+
+
+def create_access_token(user_id: UUID, *, now: datetime | None = None) -> str:
+    issued_at = now or _utcnow()
+    expires_at = issued_at + timedelta(seconds=JWT_MAX_AGE_SECONDS)
+    payload = {
+        "sub": str(user_id),
+        "iat": int(issued_at.timestamp()),
+        "exp": expires_at,
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+def _attempt_key(email: str, client_ip: str) -> tuple[str, str]:
+    return normalize_email(email), client_ip or "unknown"
+
+
+def reset_login_attempts() -> None:
+    _login_attempts.clear()
+
+
+def _get_active_attempt_state(key: tuple[str, str], now: datetime) -> LoginAttemptState:
+    state = _login_attempts.setdefault(key, LoginAttemptState())
+    if state.locked_until is not None and state.locked_until <= now:
+        state.failed_count = 0
+        state.locked_until = None
+    return state
+
+
+def _ensure_not_locked(key: tuple[str, str], now: datetime) -> None:
+    state = _get_active_attempt_state(key, now)
+    if state.locked_until is not None and state.locked_until > now:
+        raise LoginTemporarilyLocked
+
+
+def _record_failed_login(key: tuple[str, str], now: datetime) -> bool:
+    state = _get_active_attempt_state(key, now)
+    state.failed_count += 1
+    if state.failed_count > LOGIN_MAX_FAILED_ATTEMPTS:
+        state.locked_until = now + timedelta(seconds=LOGIN_LOCKOUT_SECONDS)
+        return True
+    return False
+
+
+def _record_successful_login(key: tuple[str, str]) -> None:
+    _login_attempts.pop(key, None)
+
+
 def signup_user(db: Session, *, email: str, password: str) -> User:
     normalized_email = normalize_email(email)
     validate_password_policy(password)
@@ -62,3 +158,19 @@ def signup_user(db: Session, *, email: str, password: str) -> User:
 
     db.refresh(user)
     return user
+
+
+def login_user(db: Session, *, email: str, password: str, client_ip: str) -> str:
+    normalized_email = normalize_email(email)
+    key = _attempt_key(normalized_email, client_ip)
+    now = _utcnow()
+    _ensure_not_locked(key, now)
+
+    user = db.scalar(select(User).where(User.email == normalized_email))
+    if user is None or not verify_password(password, user.password_hash):
+        if _record_failed_login(key, now):
+            raise LoginTemporarilyLocked
+        raise InvalidCredentials
+
+    _record_successful_login(key)
+    return create_access_token(user.id, now=now)
