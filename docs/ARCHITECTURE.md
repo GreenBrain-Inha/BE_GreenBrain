@@ -1,13 +1,12 @@
 ### **Architecture: GreenBrain (MVP)
 
-작성일: 2026-05-04 | 연계 문서: [PRD](PRD.md), [ADR](ADR.md)**
+작성일: 2026-05-04 | 연계 문서: [PRD](references/PRD.md), [ADR](ADR.md)**
 
 ---
 
 ## 1. 디렉토리 구조
 
-```markdown
-
+```text
 .
 ├── app/                         # FastAPI 백엔드 애플리케이션
 │   ├── main.py                  # FastAPI 앱 초기화, 라우터 등록, CORS 설정
@@ -19,6 +18,7 @@
 │   │   ├── challenges.py        # /api/challenges/*
 │   │   └── feed.py              # /api/feed/*
 │   ├── services/                # 비즈니스 로직. 라우터와 DB 사이의 유일한 로직 레이어
+│   │   ├── auth.py              # 회원가입, 로그인, JWT 발급
 │   │   ├── carbon.py            # ecologits 래퍼. 실패 시 None 반환
 │   │   ├── chat.py              # OpenAI 응답 + 탄소 계산 + 토큰 차감 플로우 조합
 │   │   ├── challenge_gen.py     # 챌린지 생성 (프로필 + 이력 컨텍스트)
@@ -27,19 +27,34 @@
 │   │   └── storage.py           # FileStorage 인터페이스 + Local/Supabase Storage 구현
 │   ├── models/                  # SQLAlchemy ORM 모델. DB 스키마와 1:1 대응
 │   ├── schemas/                 # Pydantic API 요청/응답 DTO
-│   ├── core/                    # 환경변수, 보안, 설정
-│   └── db/                      # DB 엔진 생성, 세션 관리, Alembic 마이그레이션
+│   │   ├── auth.py              # 회원가입/로그인 요청·응답
+│   │   └── common.py            # 공통 응답 스키마
+│   └── db/                      # DB 엔진 생성, 세션 관리
+├── alembic/                     # Alembic 마이그레이션
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
 ├── tests/                       # pytest. services/ 단위 테스트 중심
-├── docs/                        # PRD, ARCHITECTURE, ADR
-│   └── specs/                   # 상세 기능 SPEC
-├── scripts/                     # harness 실행기, 마이그레이션, 시드 데이터 등 유틸리티
+├── docs/                        # 아키텍처, 스펙, 참조 문서
+│   ├── ARCHITECTURE.md
+│   ├── ADR.md
+│   ├── specs/                   # 기능별 상세 SPEC
+│   ├── exec-plans/              # 이슈 단위 실행 계획
+│   │   ├── active/
+│   │   └── completed/
+│   ├── generated/               # 코드에서 동기화되는 문서 (db-schema.md 등)
+│   └── references/              # PRD, MVP 범위 등 참조 문서
+├── .agents/                     # 공통 workflow, agent, skill 정의
+│   ├── agents/
+│   ├── skills/
+│   └── workflows/
 ├── .github/                     # GitHub 이슈/PR 템플릿
-│   └── ISSUE_TEMPLATE/
+│   ├── ISSUE_TEMPLATE/
+│   └── PULL_REQUEST_TEMPLATE.md
 ├── .pre-commit-config.yml       # 포맷/린트/실수 방지 pre-commit hook 설정
-├── .claude/commands/            # Claude 명령 문서
-│   └── harness.md               # Harness 워크플로우와 실행 명령
+├── alembic.ini
 ├── CLAUDE.md                    # Claude 작업 지침
-└── AGENTS.md                    # Codex 작업 지침
+└── AGENTS.md                    # 공통 agent 작업 지침
 ```
 
 ---
@@ -114,7 +129,10 @@ users ──────────── user_profiles
 | id | UUID PK | 사용자 ID |
 | email | VARCHAR UNIQUE | 이메일 |
 | password_hash | VARCHAR | bcrypt 해시 비밀번호 |
+| nickname | VARCHAR NULL | 서비스 내 표시 이름 |
+| profile_image_url | VARCHAR NULL | 프로필 이미지 URL |
 | created_at | TIMESTAMPTZ | 생성 시각 |
+| updated_at | TIMESTAMPTZ | 수정 시각 |
 
 ---
 
@@ -122,12 +140,15 @@ users ──────────── user_profiles
 
 온보딩에서 수집한 생활 습관 프로필이다.
 
+챌린지 생성 시 개인화 컨텍스트로 사용되며, 사용자는 마이페이지에서 생활습관 프로필을 조회하거나 수정할 수 있다.
+
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | user_id | UUID PK, FK users.id | 사용자 ID |
 | transport_mode | VARCHAR | 교통수단: car / transit / walk 등 |
 | diet_type | VARCHAR | 식단 유형: omnivore / vegetarian 등 |
 | housing_type | VARCHAR | 주거 형태: apartment / house 등 |
+| updated_at | TIMESTAMPTZ | 생활습관 프로필 수정 시각 |
 
 ---
 
@@ -141,7 +162,7 @@ users ──────────── user_profiles
 | user_id | UUID FK users.id | 사용자 ID |
 | role | VARCHAR | user / assistant |
 | content | TEXT | 메시지 내용 |
-| carbon_gco2eq | FLOAT NULL | 해당 메시지의 탄소 배출량. **assistant role row에만 기록**한다(user role row는 항상 NULL). ecologits 실패 시 null |
+| carbon_gco2eq | FLOAT NULL | 해당 메시지의 탄소 배출량. ecologits 실패 시 null |
 | created_at | TIMESTAMPTZ | 생성 시각 |
 
 ---
@@ -180,6 +201,8 @@ PRIMARY KEY (user_id, date)
 
 토큰 차감, 사진 보상, 좋아요 보상, 일일 초기화 등 모든 토큰 변화 이력을 기록한다.
 
+`like_reward_log`는 별도 테이블로 두지 않고, `token_transactions`의 `type = 'like_reward'`, `source_type = 'photo'`, `source_id = photo_id`, `milestone = 3/6/9...` 형태로 통합 관리한다.
+
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | id | UUID PK | 토큰 거래 ID |
@@ -189,7 +212,7 @@ PRIMARY KEY (user_id, date)
 | amount | FLOAT | 차감은 음수, 회복은 양수 |
 | balance_after | FLOAT | 반영 후 토큰 잔액 |
 | source_type | VARCHAR NULL | message / photo / challenge / daily_reset |
-| source_id | UUID NULL | 원인이 된 리소스 ID. `daily_reset`은 NULL로 두고 날짜는 `daily_state_date`를 사용한다 |
+| source_id | UUID NULL | 원인이 된 리소스 ID |
 | milestone | INT NULL | 좋아요 보상 구간. 3, 6, 9 등 |
 | memo | TEXT NULL | 보조 설명 |
 | created_at | TIMESTAMPTZ | 생성 시각 |
@@ -215,7 +238,7 @@ WHERE type = 'like_reward';
 | upload_reward | +20 | photo | photo_id | null | 사진 업로드 보상 지급 |
 | like_reward | +20 | photo | photo_id | 3 | 좋아요 3개 보상 지급 |
 | like_reward | +20 | photo | photo_id | 6 | 좋아요 6개 보상 지급 |
-| daily_reset | +150 | daily_reset | null | null | 일일 토큰 초기화 (날짜는 `daily_state_date` 컬럼 참조) |
+| daily_reset | +150 | daily_reset | 2026-05-04 | null | 일일 토큰 초기화 |
 
 ---
 
@@ -246,6 +269,10 @@ WHERE type = 'like_reward';
 
 챌린지 인증 사진을 저장한다. 챌린지당 1장의 사진만 허용한다.
 
+피드 삭제는 실제 row를 삭제하지 않고 `is_deleted = true`로 처리한다.
+
+이미 지급된 업로드 보상과 좋아요 보상은 삭제 시 회수하지 않는다.
+
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | id | UUID PK | 사진 ID |
@@ -253,13 +280,25 @@ WHERE type = 'like_reward';
 | user_id | UUID FK users.id | 업로더 ID |
 | file_path | VARCHAR | Supabase Storage 경로 또는 로컬 개발 저장 경로 |
 | upload_rewarded | BOOL | 업로드 보상 지급 여부 |
+| is_deleted | BOOL | 피드 삭제 여부. 기본값 false |
+| deleted_at | TIMESTAMPTZ NULL | 삭제 시각 |
 | created_at | TIMESTAMPTZ | 생성 시각 |
+
+정책:
+
+- 피드 삭제는 사진 업로더 본인만 가능하다.
+- 삭제는 soft delete로 처리한다.
+- 삭제된 사진은 인증 피드에 노출하지 않는다.
+- 삭제된 사진에는 추가 좋아요를 누를 수 없다.
+- 삭제되어도 이미 지급된 업로드 보상과 좋아요 보상은 회수하지 않는다.
 
 ---
 
 ### likes
 
 사진에 대한 좋아요를 기록한다.
+
+좋아요를 누른 사용자 목록을 보여주기 위해 `liker_user_id`를 저장한다.
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
@@ -278,7 +317,9 @@ UNIQUE (photo_id, liker_user_id)
 
 - 동일 사용자는 같은 사진에 중복 좋아요를 누를 수 없다.
 - 본인 사진에는 좋아요를 누를 수 없다.
+- 삭제된 사진에는 좋아요를 누를 수 없다.
 - 계정 생성 후 24시간 이내 신규 계정은 좋아요를 누를 수 없다.
+- 좋아요 사용자 목록에는 이메일을 노출하지 않는다.
 
 ---
 
@@ -292,8 +333,12 @@ UNIQUE (photo_id, liker_user_id)
 | Auth | `POST /api/auth/login` | 로그인, JWT 쿠키 발급 |
 | Auth | `POST /api/auth/logout` | 로그아웃, 쿠키 삭제 |
 | Users | `GET /api/users/me` | 현재 사용자 정보 조회 |
+| Users | `PATCH /api/users/me` | 닉네임 등 사용자 기본 프로필 수정 |
+| Users | `GET /api/users/profile` | 현재 사용자 생활습관 프로필 조회 |
+| Users | `PATCH /api/users/profile` | 현재 사용자 생활습관 프로필 수정 |
 | Users | `POST /api/users/onboarding` | 생활 습관 프로필 저장 |
 | Chat | `POST /api/chat/message` | 메시지 전송, 응답 + 탄소량 + 토큰 잔여량 반환 |
+| Chat | `GET /api/chat/messages` | 채팅 메시지 기록 조회 |
 | Tokens | `GET /api/tokens/today` | 오늘의 토큰 상태 조회 |
 | Challenges | `GET /api/challenges/current` | 현재 활성 챌린지 조회 |
 | Challenges | `POST /api/challenges/generate` | 챌린지 자동 생성 |
@@ -301,6 +346,8 @@ UNIQUE (photo_id, liker_user_id)
 | Challenges | `POST /api/challenges/{id}/photo` | 인증 사진 업로드 |
 | Challenges | `GET /api/challenges/feed` | 인증 피드 목록 최신순 조회 |
 | Challenges | `POST /api/challenge-photos/{photo_id}/like` | 인증 사진 좋아요 |
+| Challenges | `DELETE /api/challenge-photos/{photo_id}` | 본인 인증 피드 게시물 삭제 |
+| Challenges | `GET /api/challenge-photos/{photo_id}/likes` | 해당 사진에 좋아요를 누른 사용자 목록 조회 |
 
 ---
 
@@ -410,34 +457,36 @@ UNIQUE (photo_id, liker_user_id)
   → Next.js: POST /api/challenge-photos/{photo_id}/like
   → FastAPI:
       1. 사진 존재 여부 확인
-      2. 어뷰징 검사
+      2. photo.is_deleted = false인지 확인
+         └─ 삭제된 사진이면 404 Not Found
+      3. 어뷰징 검사
          └─ 본인 사진 좋아요 불가
          └─ 동일 사진 중복 좋아요 불가
          └─ 계정 생성 24시간 이내 좋아요 불가
-      3. likes 테이블에 insert
-      4. 해당 photo의 총 좋아요 수 계산
-      5. 새로운 3의 배수 milestone 도달 여부 확인
+      4. likes 테이블에 insert
+      5. 해당 photo의 총 좋아요 수 계산
+      6. 새로운 3의 배수 milestone 도달 여부 확인
          └─ 예: 3, 6, 9 ...
-      6. milestone 도달이 아니면 보상 없이 종료
-      7. daily_token_state 행을 row-level lock으로 잠금
-      8. token_transactions에서 기존 like_reward milestone 지급 여부 확인
+      7. milestone 도달이 아니면 보상 없이 종료
+      8. daily_token_state 행을 row-level lock으로 잠금
+      9. token_transactions에서 기존 like_reward milestone 지급 여부 확인
          └─ source_type = photo
          └─ source_id = photo_id
          └─ milestone = 현재 milestone
-      9. 이미 지급된 milestone이면 보상 없이 종료
-      10. 업로더의 like_reward_given_today 확인
+      10. 이미 지급된 milestone이면 보상 없이 종료
+      11. 업로더의 like_reward_given_today 확인
           └─ 60 이상이면 보상 없음
           └─ 60 미만이면 min(20, 60 - like_reward_given_today, 150.0 - 현재 tokens_remaining) 지급
-      11. tokens_remaining 업데이트
-      12. daily_token_state.like_reward_given, total_reward_given 업데이트
-      13. token_transactions 저장
+      12. tokens_remaining 업데이트
+      13. daily_token_state.like_reward_given, total_reward_given 업데이트
+      14. token_transactions 저장
           └─ type = like_reward
           └─ amount = 실제 지급된 토큰
           └─ balance_after = 지급 후 잔액
           └─ source_type = photo
           └─ source_id = photo_id
           └─ milestone = 현재 milestone
-      14. 응답:
+      15. 응답:
           {
             liked: true,
             like_count,
@@ -457,6 +506,106 @@ type = like_reward인 token_transactions에 대해
 
 ---
 
+### 6.5 프로필 정보 및 생활습관 프로필 수정
+
+```
+사용자 프로필 화면 진입
+  → Next.js: GET /api/users/me
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. users 테이블에서 기본 프로필 조회
+      3. 응답: { id, email, nickname, profile_image_url }
+
+사용자 기본 프로필 수정
+  → Next.js: PATCH /api/users/me
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. nickname, profile_image_url 등 입력값 검증
+      3. users 테이블 업데이트
+      4. updated_at 갱신
+      5. 응답: 수정된 기본 프로필 반환
+
+생활습관 프로필 조회
+  → Next.js: GET /api/users/profile
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. user_profiles 조회
+      3. 응답: { transport_mode, diet_type, housing_type, updated_at }
+
+생활습관 프로필 수정
+  → Next.js: PATCH /api/users/profile
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. 입력값 검증
+      3. user_profiles 업데이트
+      4. updated_at 갱신
+      5. 응답: 수정된 생활습관 프로필 반환
+```
+
+---
+
+### 6.6 챌린지 피드 삭제
+
+```
+사용자가 본인 인증 피드 게시물 삭제
+  → Next.js: DELETE /api/challenge-photos/{photo_id}
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. challenge_photos 조회
+      3. photo.user_id == current_user.id인지 확인
+         └─ 아니면 403 Forbidden
+      4. 이미 삭제된 게시물인지 확인
+         └─ 이미 삭제된 경우 deleted: true 반환 또는 404 처리
+      5. is_deleted = true
+      6. deleted_at = now()
+      7. 응답: { deleted: true }
+
+피드 조회 시
+  → Next.js: GET /api/challenges/feed
+  → FastAPI:
+      1. is_deleted = false인 사진만 조회
+      2. 최신순으로 반환
+```
+
+정책:
+
+- 삭제는 soft delete로 처리한다.
+- 삭제된 사진은 피드에 노출하지 않는다.
+- 삭제된 사진에는 추가 좋아요를 누를 수 없다.
+- 삭제되어도 이미 지급된 업로드 보상과 좋아요 보상은 회수하지 않는다.
+
+---
+
+### 6.7 좋아요 사용자 목록 조회
+
+```
+사용자가 피드에서 좋아요 사용자 목록 확인
+  → Next.js: GET /api/challenge-photos/{photo_id}/likes
+  → FastAPI:
+      1. JWT에서 current_user 확인
+      2. challenge_photos 조회
+      3. photo.is_deleted = false인지 확인
+         └─ 삭제된 사진이면 404 Not Found
+      4. likes와 users를 join하여 좋아요 누른 사용자 목록 조회
+      5. 응답:
+         [
+           {
+             user_id,
+             nickname,
+             profile_image_url,
+             liked_at
+           }
+         ]
+```
+
+정책:
+
+- 좋아요 사용자 목록에는 이메일을 노출하지 않는다.
+- 응답에는 `user_id`, `nickname`, `profile_image_url`, `liked_at`만 포함한다.
+- 삭제된 사진의 좋아요 사용자 목록은 조회할 수 없다.
+
+---
+
 ## 7. Auth & Security
 
 - JWT는 HttpOnly + Secure 쿠키에 저장한다.
@@ -468,6 +617,10 @@ type = like_reward인 token_transactions에 대해
 - 본인 사진 좋아요는 차단한다.
 - 동일 사진 중복 좋아요는 `UNIQUE(photo_id, liker_user_id)` 제약조건으로 차단한다.
 - 계정 생성 후 24시간 이내 신규 계정은 좋아요 버튼을 비활성화한다.
+- 피드 게시물 삭제는 `challenge_photos.user_id == current_user.id`인 경우에만 허용한다.
+- 삭제된 피드 게시물은 피드 조회, 좋아요, 좋아요 사용자 목록 조회 대상에서 제외한다.
+- 좋아요 사용자 목록에는 이메일을 노출하지 않는다.
+- 좋아요 사용자 목록에는 `user_id`, `nickname`, `profile_image_url`, `liked_at`만 반환한다.
 
 ### 쿠키와 CORS 주의사항
 

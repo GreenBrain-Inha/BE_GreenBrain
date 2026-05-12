@@ -31,3 +31,23 @@ class AuthUserResponse(BaseModel):
 class SignupResponse(BaseModel):
     message: str
     user: AuthUserResponse
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        if not EMAIL_PATTERN.match(value.strip()):
+            raise ValueError("Invalid email")
+        return value
+
+
+class LoginResponse(BaseModel):
+    message: str
+
+
+class LogoutResponse(BaseModel):
+    message: str

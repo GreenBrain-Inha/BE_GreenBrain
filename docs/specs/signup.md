@@ -4,7 +4,7 @@
 
 이 문서는 이메일과 비밀번호 기반 회원가입 기능의 구현 기준을 정의한다. 구현 범위는 GitHub Issue [#1 회원가입 기능 구현](https://github.com/GreenBrain-Inha/BE_GreenBrain/issues/1)을 기준으로 하며, 다음 문서의 인증 요구사항을 따른다.
 
-- `docs/PRD.md`: F-A01 회원가입, 비밀번호 보안 요구사항
+- `docs/references/PRD.md`: F-A01 회원가입, 비밀번호 보안 요구사항
 - `docs/ARCHITECTURE.md`: `POST /api/auth/signup`, `users` 테이블, FastAPI JWT + bcrypt 구조
 
 ## 기능 목표

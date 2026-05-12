@@ -85,7 +85,8 @@ python3 -m pytest
 │   ├── schemas/          # Pydantic 요청/응답 스키마
 │   └── db/               # DB 세션, Alembic 마이그레이션
 ├── tests/                # pytest 테스트
-├── docs/                 # PRD, 아키텍처, ADR, SPEC
+├── docs/                 # references, architecture, specs, exec plans, generated docs
+├── .agents/              # 공통 agent workflow, agent, skill 정의
 └── scripts/              # 유틸리티 스크립트
 ```
 
@@ -107,6 +108,7 @@ python3 -m pytest
 
 ## 참고 문서
 
-- [PRD](docs/PRD.md) — 제품 요구사항
+- [PRD](docs/references/PRD.md) — 제품 요구사항
+- [MVP Scope](docs/references/MVP_SCOPE.md) — MVP 포함/제외 범위
 - [Architecture](docs/ARCHITECTURE.md) — 아키텍처 및 데이터 모델
 - [ADR](docs/ADR.md) — 설계 결정 기록
