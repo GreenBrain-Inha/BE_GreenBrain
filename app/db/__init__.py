@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from typing import Optional
 
 from sqlalchemy import MetaData, create_engine
@@ -70,3 +71,13 @@ class LazySessionMaker(sessionmaker[Session]):
 
 
 SessionLocal = LazySessionMaker(autocommit=False, autoflush=False)
+
+
+def get_db() -> Generator[Session, None, None]:
+    """Yield a database session for FastAPI dependencies."""
+
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
