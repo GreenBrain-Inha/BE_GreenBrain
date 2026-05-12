@@ -2,10 +2,11 @@ import re
 from pathlib import Path
 
 import sqlalchemy as sa
+from sqlalchemy import create_engine
 from sqlalchemy.dialects import postgresql
 
 import app.models  # noqa: F401 - populate SQLAlchemy metadata
-from app.db import Base
+from app.db import Base, SessionLocal, configure_database
 
 
 EXPECTED_TABLES = {
@@ -52,6 +53,18 @@ def test_daily_token_state_has_composite_primary_key() -> None:
 def test_relationship_constraints_and_indexes_are_declared() -> None:
     tables = Base.metadata.tables
 
+    token_transactions = tables["token_transactions"]
+    composite_foreign_keys = [
+        constraint
+        for constraint in token_transactions.foreign_key_constraints
+        if {column.name for column in constraint.columns} == {"user_id", "daily_state_date"}
+    ]
+    assert composite_foreign_keys
+    assert {
+        element.column.table.name
+        for element in composite_foreign_keys[0].elements
+    } == {"daily_token_state"}
+
     challenge_photos = tables["challenge_photos"]
     assert challenge_photos.c.challenge_id.unique
 
@@ -66,7 +79,6 @@ def test_relationship_constraints_and_indexes_are_declared() -> None:
         for constraint in unique_constraints
     ]
 
-    token_transactions = tables["token_transactions"]
     assert "uq_token_transactions_like_reward_milestone" in {
         index.name for index in token_transactions.indexes
     }
@@ -84,3 +96,14 @@ def test_initial_alembic_migration_creates_all_architecture_tables() -> None:
     contents = migration.read_text()
     for table_name in EXPECTED_TABLES:
         assert re.search(rf'op\.create_table\(\s*"{table_name}"', contents)
+
+    assert '["user_id", "daily_state_date"]' in contents
+    assert '["daily_token_state.user_id", "daily_token_state.date"]' in contents
+
+
+def test_session_local_is_bound_when_database_is_configured() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    configure_database(engine=engine)
+
+    with SessionLocal() as session:
+        assert session.execute(sa.text("select 1")).scalar_one() == 1

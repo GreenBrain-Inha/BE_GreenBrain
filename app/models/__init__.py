@@ -128,6 +128,11 @@ class DailyTokenState(Base):
 class TokenTransaction(Base):
     __tablename__ = "token_transactions"
     __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["user_id", "daily_state_date"],
+            ["daily_token_state.user_id", "daily_token_state.date"],
+            ondelete="CASCADE",
+        ),
         sa.Index(
             "uq_token_transactions_like_reward_milestone",
             "source_type",

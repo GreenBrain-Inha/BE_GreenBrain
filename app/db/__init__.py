@@ -7,7 +7,7 @@ from typing import Optional
 
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
 NAMING_CONVENTION = {
@@ -40,4 +40,33 @@ def create_database_engine(database_url: Optional[str] = None) -> Engine:
     return create_engine(database_url or get_database_url(), pool_pre_ping=True)
 
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False)
+_engine: Engine | None = None
+
+
+def configure_database(database_url: Optional[str] = None, engine: Optional[Engine] = None) -> Engine:
+    """Configure the process-wide database engine used by SessionLocal."""
+
+    global _engine
+    _engine = engine or create_database_engine(database_url)
+    SessionLocal.configure(bind=_engine)
+    return _engine
+
+
+def get_engine() -> Engine:
+    """Return a lazily configured database engine."""
+
+    if _engine is None:
+        return configure_database()
+    return _engine
+
+
+class LazySessionMaker(sessionmaker[Session]):
+    """Session factory that binds itself before first use."""
+
+    def __call__(self, **local_kw: object) -> Session:
+        if self.kw.get("bind") is None and "bind" not in local_kw:
+            configure_database()
+        return super().__call__(**local_kw)
+
+
+SessionLocal = LazySessionMaker(autocommit=False, autoflush=False)

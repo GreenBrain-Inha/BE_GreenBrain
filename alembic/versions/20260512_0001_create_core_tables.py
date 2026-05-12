@@ -80,6 +80,11 @@ def upgrade() -> None:
         sa.Column("milestone", sa.Integer(), nullable=True),
         sa.Column("memo", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["user_id", "daily_state_date"],
+            ["daily_token_state.user_id", "daily_token_state.date"],
+            ondelete="CASCADE",
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
