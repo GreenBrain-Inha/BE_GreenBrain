@@ -28,6 +28,7 @@ from app.services.auth import (
     signup_user,
 )
 
+from app.core.config import access_token_cookie_secure
 
 router = APIRouter()
 
@@ -101,7 +102,7 @@ def login(
         value=access_token,
         max_age=JWT_MAX_AGE_SECONDS,
         httponly=True,
-        secure=True,
+        secure=access_token_cookie_secure(),
         samesite="strict",
     )
     return LoginResponse(message="Login successful")
