@@ -3,16 +3,27 @@
 from __future__ import annotations
 
 import bcrypt
-import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from jose import jwt
+from uuid import UUID
+
+from jose import jwt, JWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from fastapi import Cookie, Depends, HTTPException, status
 
+from app.db import get_db
+from app.core.security import (
+    ACCESS_TOKEN_COOKIE_NAME,
+    JWT_ALGORITHM,
+    JWT_MAX_AGE_SECONDS,
+    LOGIN_LOCKOUT_SECONDS,
+    LOGIN_MAX_FAILED_ATTEMPTS,
+    get_jwt_secret,
+)
 from app.models import User
 
 
@@ -20,11 +31,6 @@ PASSWORD_POLICY_MESSAGE = (
     "Password must be at least 8 characters, include uppercase, lowercase, "
     "and number, and be at most 72 bytes"
 )
-ACCESS_TOKEN_COOKIE_NAME = "access_token"
-JWT_ALGORITHM = "HS256"
-JWT_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
-LOGIN_MAX_FAILED_ATTEMPTS = 5
-LOGIN_LOCKOUT_SECONDS = 15 * 60
 
 
 class EmailAlreadyExists(Exception):
@@ -43,8 +49,6 @@ class LoginTemporarilyLocked(Exception):
     """Raised when an email and IP pair is temporarily locked."""
 
 
-class JwtSecretNotConfigured(Exception):
-    """Raised when JWT signing cannot be configured."""
 
 
 @dataclass
@@ -85,12 +89,6 @@ def verify_password(password: str, password_hash: str) -> bool:
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
-
-def get_jwt_secret() -> str:
-    secret = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET")
-    if not secret:
-        raise JwtSecretNotConfigured("JWT_SECRET_KEY or JWT_SECRET must be configured")
-    return secret
 
 
 def create_access_token(user_id: UUID, *, now: datetime | None = None) -> str:
@@ -157,6 +155,31 @@ def signup_user(db: Session, *, email: str, password: str) -> User:
         raise EmailAlreadyExists from exc
 
     db.refresh(user)
+    return user
+
+
+def get_current_user(
+    db: Session = Depends(get_db),
+    access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE_NAME),
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={"message": "Not authenticated"},
+    )
+    if access_token is None:
+        raise credentials_exception
+    try:
+        payload = jwt.decode(access_token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        user_id_str: str | None = payload.get("sub")
+        if user_id_str is None:
+            raise credentials_exception
+        user_id = UUID(user_id_str)
+    except (JWTError, ValueError):
+        raise credentials_exception
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise credentials_exception
     return user
 
 

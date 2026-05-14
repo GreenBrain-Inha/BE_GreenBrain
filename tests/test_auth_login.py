@@ -19,18 +19,17 @@ from app.services import auth as auth_service
 
 
 INVALID_CREDENTIALS_BODY = {
-    "code": "INVALID_CREDENTIALS",
     "message": "Invalid email or password",
 }
 
 LOCKED_BODY = {
-    "code": "LOGIN_TEMPORARILY_LOCKED",
     "message": "Too many failed login attempts. Try again later.",
 }
 
 
 @pytest.fixture(autouse=True)
 def reset_login_attempts(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
     auth_service.reset_login_attempts()
     yield
@@ -89,7 +88,7 @@ def parse_set_cookie(response: object) -> SimpleCookie:
     return cookie
 
 
-def test_login_sets_secure_httponly_jwt_cookie(
+def test_login_sets_local_httponly_jwt_cookie(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -106,7 +105,7 @@ def test_login_sets_secure_httponly_jwt_cookie(
     set_cookie = response.headers["set-cookie"]
     assert "access_token=" in set_cookie
     assert "HttpOnly" in set_cookie
-    assert "Secure" in set_cookie
+    assert "Secure" not in set_cookie
     assert "Max-Age=604800" in set_cookie
     assert "SameSite=strict" in set_cookie
 
@@ -115,6 +114,23 @@ def test_login_sets_secure_httponly_jwt_cookie(
     payload = jwt.decode(token, "test-secret", algorithms=["HS256"])
     assert payload["sub"] == str(user.id)
     assert UUID(payload["sub"]) == user.id
+
+
+def test_login_sets_secure_cookie_in_production(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_ENV", "prod")
+    create_user(db_session, email="user@example.com", password="Password123")
+
+    response = client.post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "Password123"},
+    )
+
+    assert response.status_code == 200
+    assert "Secure" in response.headers["set-cookie"]
 
 
 @pytest.mark.parametrize(
@@ -251,5 +267,5 @@ def test_logout_expires_access_token_cookie(client: TestClient) -> None:
     assert "access_token=" in set_cookie
     assert "Max-Age=0" in set_cookie
     assert "HttpOnly" in set_cookie
-    assert "Secure" in set_cookie
+    assert "Secure" not in set_cookie
     assert "SameSite=strict" in set_cookie

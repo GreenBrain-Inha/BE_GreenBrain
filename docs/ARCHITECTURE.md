@@ -10,10 +10,13 @@
 .
 ├── app/                         # FastAPI 백엔드 애플리케이션
 │   ├── main.py                  # FastAPI 앱 초기화, 라우터 등록, CORS 설정
+│   ├── core/                    # 앱 전역 설정 및 보안 유틸리티
+│   │   ├── config.py            # 환경변수 기반 Settings (DATABASE_URL, JWT_SECRET_KEY 등)
+│   │   └── security.py          # JWT/쿠키 보안 상수 및 헬퍼
 │   ├── routers/                 # HTTP 엔드포인트. 입력 검증 후 service 호출만 담당
 │   │   ├── auth.py              # /api/auth/*
-│   │   ├── users.py             # /api/users/*
 │   │   ├── chat.py              # /api/chat/*
+│   │   ├── users.py             # /api/users/*
 │   │   ├── tokens.py            # /api/tokens/*
 │   │   ├── challenges.py        # /api/challenges/*
 │   │   └── feed.py              # /api/feed/*
@@ -21,14 +24,22 @@
 │   │   ├── auth.py              # 회원가입, 로그인, JWT 발급
 │   │   ├── carbon.py            # ecologits 래퍼. 실패 시 None 반환
 │   │   ├── chat.py              # OpenAI 응답 + 탄소 계산 + 토큰 차감 플로우 조합
+│   │   ├── chat_session.py      # 채팅 세션 CRUD
 │   │   ├── challenge_gen.py     # 챌린지 생성 (프로필 + 이력 컨텍스트)
-│   │   ├── reward.py            # 사진/좋아요 보상 계산. 일일 상한 로직 포함
+│   │   ├── token_account.py     # 토큰 사용 / 사진, 좋아요 보상 계산. 일일 상한 로직 포함
 │   │   ├── daily_reset.py       # KST 자정 기준 lazy initialization
 │   │   └── storage.py           # FileStorage 인터페이스 + Local/Supabase Storage 구현
 │   ├── models/                  # SQLAlchemy ORM 모델. DB 스키마와 1:1 대응
+│   │   ├── _mixins.py           # 공유 컬럼 헬퍼 (uuid_pk, timestamp_column)
+│   │   ├── user.py              # User, UserProfile
+│   │   ├── chat.py              # ChatSession, Message
+│   │   ├── token.py             # DailyTokenState, TokenTransaction
+│   │   └── challenge.py         # Challenge, ChallengePhoto, Like
 │   ├── schemas/                 # Pydantic API 요청/응답 DTO
 │   │   ├── auth.py              # 회원가입/로그인 요청·응답
-│   │   └── common.py            # 공통 응답 스키마
+│   │   ├── chat.py              # 채팅 메시지 요청·응답
+│   │   ├── chat_session.py      # 채팅 세션 요청·응답
+│   │   └── common.py            # ApiError, Errors, error_response
 │   └── db/                      # DB 엔진 생성, 세션 관리
 ├── alembic/                     # Alembic 마이그레이션
 │   ├── env.py
@@ -106,8 +117,10 @@ GreenBrain은 AI 챗봇 사용량을 탄소 토큰으로 환산하고, 토큰 �
 ```
 users ──────────── user_profiles
   │                 (1:1)
-  ├── messages
+  ├── chat_sessions
   │   (1:N)
+  │     └── messages
+  │           (1:N)
   ├── daily_token_state
   │   (1:N, 날짜별)
   ├── token_transactions
@@ -148,7 +161,20 @@ users ──────────── user_profiles
 | transport_mode | VARCHAR | 교통수단: car / transit / walk 등 |
 | diet_type | VARCHAR | 식단 유형: omnivore / vegetarian 등 |
 | housing_type | VARCHAR | 주거 형태: apartment / house 등 |
-| updated_at | TIMESTAMPTZ | 생활습관 프로필 수정 시각 |
+
+---
+
+### chat_sessions
+
+사용자별 채팅 세션을 기록한다. 메시지는 항상 하나의 세션에 속한다.
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| id | UUID PK | 채팅 세션 ID |
+| user_id | UUID FK users.id | 사용자 ID |
+| title | VARCHAR NULL | 세션 제목. 최초 메시지 기반 자동 생성 또는 사용자 수정 |
+| created_at | TIMESTAMPTZ | 생성 시각 |
+| updated_at | TIMESTAMPTZ | 수정 시각 |
 
 ---
 
@@ -160,6 +186,7 @@ users ──────────── user_profiles
 | --- | --- | --- |
 | id | UUID PK | 메시지 ID |
 | user_id | UUID FK users.id | 사용자 ID |
+| session_id | UUID FK chat_sessions.id | 채팅 세션 ID |
 | role | VARCHAR | user / assistant |
 | content | TEXT | 메시지 내용 |
 | carbon_gco2eq | FLOAT NULL | 해당 메시지의 탄소 배출량. ecologits 실패 시 null |
@@ -337,8 +364,12 @@ UNIQUE (photo_id, liker_user_id)
 | Users | `GET /api/users/profile` | 현재 사용자 생활습관 프로필 조회 |
 | Users | `PATCH /api/users/profile` | 현재 사용자 생활습관 프로필 수정 |
 | Users | `POST /api/users/onboarding` | 생활 습관 프로필 저장 |
-| Chat | `POST /api/chat/message` | 메시지 전송, 응답 + 탄소량 + 토큰 잔여량 반환 |
-| Chat | `GET /api/chat/messages` | 채팅 메시지 기록 조회 |
+| Chat | `POST /api/chat/sessions` | 채팅 세션 생성 |
+| Chat | `GET /api/chat/sessions` | 채팅 세션 목록 조회 |
+| Chat | `PATCH /api/chat/sessions/{session_id}` | 채팅 세션 제목 수정 |
+| Chat | `DELETE /api/chat/sessions/{session_id}` | 채팅 세션 삭제 |
+| Chat | `POST /api/chat/sessions/{session_id}/messages` | 메시지 전송, 응답 + 탄소량 + 토큰 잔여량 반환 |
+| Chat | `GET /api/chat/sessions/{session_id}/messages` | 세션별 메시지 목록 조회 |
 | Tokens | `GET /api/tokens/today` | 오늘의 토큰 상태 조회 |
 | Challenges | `GET /api/challenges/current` | 현재 활성 챌린지 조회 |
 | Challenges | `POST /api/challenges/generate` | 챌린지 자동 생성 |
@@ -357,26 +388,28 @@ UNIQUE (photo_id, liker_user_id)
 
 ```
 사용자 메시지 전송
-  → Next.js: POST /api/chat/message
+  → Next.js: POST /api/chat/sessions/{session_id}/messages
   → FastAPI:
-      1. 오늘의 daily_token_state 조회 또는 생성
+      1. chat_sessions 소유권 확인
+      2. 오늘의 daily_token_state 조회 또는 생성
          └─ KST 기준 오늘 날짜 행이 없으면 tokens_remaining = 150.0으로 생성
-      2. tokens_remaining > 0인지 확인
+      3. tokens_remaining > 0인지 확인
          └─ 0이면 채팅 요청 차단
-      3. OpenAI 호출 → 응답 텍스트 생성
-      4. ecologits 호출 → gCO₂eq 계산
+      4. OpenAI 호출 → 응답 텍스트 생성
+      5. ecologits 호출 → gCO₂eq 계산
          └─ 실패 시: carbon_gco2eq = null, 차감 건너뜀
-      5. DB transaction 안에서 daily_token_state 행을 row-level lock으로 잠금
-      6. tokens_remaining -= gCO₂eq
+      6. DB transaction 안에서 daily_token_state 행을 row-level lock으로 잠금
+      7. tokens_remaining -= gCO₂eq
          └─ 0 이하가 되면 0으로 고정하고 exhausted = true
-      7. messages 저장
-      8. token_transactions 저장
+      8. messages 저장
+         └─ user 메시지와 assistant 메시지 모두 session_id 연결
+      9. token_transactions 저장
          └─ type = chat_usage
          └─ amount = -gCO₂eq
          └─ balance_after = 차감 후 잔액
          └─ source_type = message
-         └─ source_id = message_id
-      9. 응답: { response, carbon_gco2eq, tokens_remaining, exhausted }
+         └─ source_id = assistant message_id
+      10. 응답: { response, carbon_gco2eq, tokens_remaining, exhausted, session_title }
   → Next.js:
       - 응답 하단에 메시지별 탄소량 표시
       - 토큰 바 업데이트
