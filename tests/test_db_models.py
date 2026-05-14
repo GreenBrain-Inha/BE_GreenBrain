@@ -12,6 +12,7 @@ from app.db import Base, SessionLocal, configure_database
 EXPECTED_TABLES = {
     "users",
     "user_profiles",
+    "chat_sessions",
     "messages",
     "daily_token_state",
     "token_transactions",
@@ -19,6 +20,8 @@ EXPECTED_TABLES = {
     "challenge_photos",
     "likes",
 }
+
+INITIAL_MIGRATION_TABLES = EXPECTED_TABLES - {"chat_sessions"}
 
 
 def test_architecture_tables_are_declared() -> None:
@@ -52,6 +55,15 @@ def test_daily_token_state_has_composite_primary_key() -> None:
 
 def test_relationship_constraints_and_indexes_are_declared() -> None:
     tables = Base.metadata.tables
+
+    messages = tables["messages"]
+    assert "session_id" in messages.c
+    assert not messages.c.session_id.nullable
+
+    chat_sessions = tables["chat_sessions"]
+    assert "ix_chat_sessions_user_id" in {
+        index.name for index in chat_sessions.indexes
+    }
 
     token_transactions = tables["token_transactions"]
     composite_foreign_keys = [
@@ -94,11 +106,22 @@ def test_initial_alembic_migration_creates_all_architecture_tables() -> None:
 
     assert migration.exists()
     contents = migration.read_text()
-    for table_name in EXPECTED_TABLES:
+    for table_name in INITIAL_MIGRATION_TABLES:
         assert re.search(rf'op\.create_table\(\s*"{table_name}"', contents)
 
     assert '["user_id", "daily_state_date"]' in contents
     assert '["daily_token_state.user_id", "daily_token_state.date"]' in contents
+
+
+def test_chat_session_alembic_migration_adds_session_table_and_message_fk() -> None:
+    migration = Path("alembic/versions/20260514_0001_add_chat_sessions.py")
+
+    assert migration.exists()
+    contents = migration.read_text()
+    assert re.search(r'op\.create_table\(\s*"chat_sessions"', contents)
+    assert 'op.add_column("messages"' in contents
+    assert '"session_id"' in contents
+    assert '"fk_messages_session_id_chat_sessions"' in contents
 
 
 def test_session_local_is_bound_when_database_is_configured() -> None:
