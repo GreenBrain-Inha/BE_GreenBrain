@@ -38,6 +38,9 @@ class User(Base):
     messages: Mapped[list["Message"]] = relationship(back_populates="user")
     daily_token_states: Mapped[list["DailyTokenState"]] = relationship(back_populates="user")
     token_transactions: Mapped[list["TokenTransaction"]] = relationship(back_populates="user")
+    challenges: Mapped[list["Challenge"]] = relationship(back_populates="user")
+    challenge_photos: Mapped[list["ChallengePhoto"]] = relationship(back_populates="user")
+    likes: Mapped[list["Like"]] = relationship(back_populates="liker")
 
 
 class UserProfile(Base):
