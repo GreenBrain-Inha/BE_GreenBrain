@@ -25,6 +25,11 @@ class Errors:
     AI_PROVIDER_ERROR = ApiError(502, "AI provider failed to generate a response")
     CHAT_SESSION_NOT_FOUND = ApiError(404, "Chat session not found")
     NOT_FOUND = ApiError(404, "Not found")
+    CHALLENGE_NOT_FOUND = ApiError(404, "Challenge not found")
+    TOKEN_NOT_EXHAUSTED = ApiError(409, "Daily chat tokens are not exhausted")
+    CHALLENGE_NOT_PENDING = ApiError(409, "Challenge is not pending acceptance")
+    DAILY_CHALLENGE_LIMIT_REACHED = ApiError(429, "Daily challenge limit reached")
+    CHALLENGE_GENERATION_FAILED = ApiError(502, "Challenge generation failed")
 
 
 def error_response(error: ApiError) -> JSONResponse:
