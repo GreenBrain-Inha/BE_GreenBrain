@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
 from typing import Optional
 
@@ -27,12 +26,8 @@ class Base(DeclarativeBase):
 
 
 def get_database_url() -> str:
-    """Return the configured synchronous database URL."""
-
-    database_url = os.getenv("DATABASE_URL") or os.getenv("DB_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL or DB_URL must be configured")
-    return database_url
+    from app.core.config import settings
+    return settings.database_url
 
 
 def create_database_engine(database_url: Optional[str] = None) -> Engine:
