@@ -15,11 +15,9 @@ from app.schemas.auth import (
     SignupRequest,
     SignupResponse,
 )
-from app.schemas.common import ErrorCode
+from app.schemas.common import Errors, error_response
+from app.core.security import ACCESS_TOKEN_COOKIE_NAME, JWT_MAX_AGE_SECONDS, is_cookie_secure
 from app.services.auth import (
-    ACCESS_TOKEN_COOKIE_NAME,
-    JWT_MAX_AGE_SECONDS,
-    PASSWORD_POLICY_MESSAGE,
     EmailAlreadyExists,
     InvalidCredentials,
     LoginTemporarilyLocked,
@@ -41,21 +39,9 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupRespo
     try:
         user = signup_user(db, email=payload.email, password=payload.password)
     except EmailAlreadyExists:
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={
-                "code": ErrorCode.EMAIL_ALREADY_EXISTS.value,
-                "message": "Email already exists",
-            },
-        )
+        return error_response(Errors.EMAIL_ALREADY_EXISTS)
     except PasswordPolicyViolation:
-        return JSONResponse(
-            status_code=422,
-            content={
-                "code": ErrorCode.PASSWORD_POLICY_VIOLATION.value,
-                "message": PASSWORD_POLICY_MESSAGE,
-            },
-        )
+        return error_response(Errors.PASSWORD_POLICY_VIOLATION)
 
     return SignupResponse(
         message="Signup successful",
@@ -80,28 +66,16 @@ def login(
             client_ip=client_ip,
         )
     except LoginTemporarilyLocked:
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={
-                "code": ErrorCode.LOGIN_TEMPORARILY_LOCKED.value,
-                "message": "Too many failed login attempts. Try again later.",
-            },
-        )
+        return error_response(Errors.LOGIN_TEMPORARILY_LOCKED)
     except InvalidCredentials:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={
-                "code": ErrorCode.INVALID_CREDENTIALS.value,
-                "message": "Invalid email or password",
-            },
-        )
+        return error_response(Errors.INVALID_CREDENTIALS)
 
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
         value=access_token,
         max_age=JWT_MAX_AGE_SECONDS,
         httponly=True,
-        secure=True,
+        secure=is_cookie_secure(),
         samesite="strict",
     )
     return LoginResponse(message="Login successful")
@@ -115,7 +89,7 @@ def logout(response: Response) -> LogoutResponse:
         max_age=0,
         expires=0,
         httponly=True,
-        secure=True,
+        secure=is_cookie_secure(),
         samesite="strict",
     )
     return LogoutResponse(message="Logout successful")

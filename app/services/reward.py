@@ -1,1 +1,0 @@
-"""Token reward accounting service."""
