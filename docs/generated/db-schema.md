@@ -1,6 +1,6 @@
 # DB Schema
 
-Generated from SQLAlchemy models and Alembic revision `20260512_0001`.
+Generated from SQLAlchemy models and Alembic revision `20260514_0001`.
 
 ## users
 
@@ -16,10 +16,19 @@ Generated from SQLAlchemy models and Alembic revision `20260512_0001`.
 - `diet_type`: string, required
 - `housing_type`: string, required
 
+## chat_sessions
+
+- `id`: UUID primary key, default `gen_random_uuid()`
+- `user_id`: UUID foreign key to `users.id` with cascade delete, indexed
+- `title`: string, nullable, max length 120
+- `created_at`: timestamp with timezone, default `now()`
+- `updated_at`: timestamp with timezone, default `now()`
+
 ## messages
 
 - `id`: UUID primary key, default `gen_random_uuid()`
 - `user_id`: UUID foreign key to `users.id` with cascade delete, indexed
+- `session_id`: UUID foreign key to `chat_sessions.id` with cascade delete, indexed
 - `role`: string, required
 - `content`: text, required
 - `carbon_gco2eq`: float, nullable
@@ -65,7 +74,7 @@ Generated from SQLAlchemy models and Alembic revision `20260512_0001`.
 - `completed_at`: timestamp with timezone, nullable
 - Unique partial index: `uq_challenges_one_open_per_user` on `user_id` where `status IN ('pending_acceptance', 'active')`
 
-## challenge
+## challenge_photos
 
 - `id`: UUID primary key, default `gen_random_uuid()`
 - `challenge_id`: UUID foreign key to `challenges.id` with cascade delete, unique
