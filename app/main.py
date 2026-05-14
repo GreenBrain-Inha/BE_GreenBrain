@@ -1,9 +1,11 @@
 """FastAPI application entrypoint."""
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
-
 from app.routers import auth
-
 
 app = FastAPI(title="GreenBrain API")
 
