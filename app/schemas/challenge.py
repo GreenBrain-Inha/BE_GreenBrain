@@ -33,3 +33,28 @@ class GenerateChallengeResponse(BaseModel):
 
 class AcceptChallengeResponse(BaseModel):
     challenge: ChallengeResponse
+
+
+class ChallengePhotoResponse(BaseModel):
+    id: UUID
+    challenge_id: UUID
+    file_url: str
+    created_at: datetime
+
+
+class ChallengePhotoUploadChallengeResponse(BaseModel):
+    id: UUID
+    status: str
+    completed_at: datetime
+
+
+class ChallengePhotoUploadRewardResponse(BaseModel):
+    type: str
+    reward_amount: float
+    tokens_remaining: float
+
+
+class ChallengePhotoUploadResponse(BaseModel):
+    photo: ChallengePhotoResponse
+    challenge: ChallengePhotoUploadChallengeResponse
+    reward: ChallengePhotoUploadRewardResponse
