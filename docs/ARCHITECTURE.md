@@ -28,7 +28,7 @@
 │   │   ├── challenge_gen.py     # 챌린지 생성 (프로필 + 이력 컨텍스트)
 │   │   ├── token_account.py     # 토큰 사용 / 사진, 좋아요 보상 계산. 일일 상한 로직 포함
 │   │   ├── daily_reset.py       # KST 자정 기준 lazy initialization
-│   │   └── storage.py           # FileStorage 인터페이스 + Local/Supabase Storage 구현
+│   │   └── storage.py           # FileStorage 인터페이스 + Local Storage 구현, Supabase Storage 확장 예정
 │   ├── models/                  # SQLAlchemy ORM 모델. DB 스키마와 1:1 대응
 │   │   ├── _mixins.py           # 공유 컬럼 헬퍼 (uuid_pk, timestamp_column)
 │   │   ├── user.py              # User, UserProfile
@@ -478,7 +478,25 @@ UNIQUE (photo_id, liker_user_id)
           └─ source_type = photo
           └─ source_id = photo_id
       14. upload_rewarded = true
-      15. 응답: { photo_id, tokens_remaining, reward_amount }
+      15. 응답:
+          {
+            "photo": {
+              "id": "photo_id",
+              "challenge_id": "challenge_id",
+              "file_url": "https://...",
+              "created_at": "2026-05-14T09:10:00Z"
+            },
+            "challenge": {
+              "id": "challenge_id",
+              "status": "completed",
+              "completed_at": "2026-05-14T09:10:00Z"
+            },
+            "reward": {
+              "type": "upload_reward",
+              "reward_amount": 20,
+              "tokens_remaining": 70
+            }
+          }
 ```
 
 ---
