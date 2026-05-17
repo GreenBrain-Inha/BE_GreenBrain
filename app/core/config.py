@@ -30,5 +30,10 @@ class Settings:
     def app_env(self) -> str:
         return os.getenv("APP_ENV", "prod").strip().lower()
 
+    @property
+    def allowed_origins(self) -> list[str]:
+        raw = os.getenv("ALLOWED_ORIGINS", "")
+        return [o.strip() for o in raw.split(",") if o.strip()]
+
 
 settings = Settings()
