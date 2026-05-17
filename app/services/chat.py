@@ -34,15 +34,13 @@ def _openai_client() -> OpenAI:
 
 
 def _build_history(db: Session, *, session_id: UUID, latest_message: str) -> list[dict[str, str]]:
-    history = [
-        {"role": message.role, "content": message.content}
-        for message in db.scalars(
-            select(Message)
-            .where(Message.session_id == session_id, Message.role.in_(["user", "assistant"]))
-            .order_by(Message.created_at.asc())
-            .limit(20)
-        )
-    ]
+    rows = list(db.scalars(
+        select(Message)
+        .where(Message.session_id == session_id, Message.role.in_(["user", "assistant"]))
+        .order_by(Message.created_at.desc())
+        .limit(20)
+    ))
+    history = [{"role": m.role, "content": m.content} for m in reversed(rows)]
     if not history or history[-1] != {"role": "user", "content": latest_message}:
         history.append({"role": "user", "content": latest_message})
     return history
