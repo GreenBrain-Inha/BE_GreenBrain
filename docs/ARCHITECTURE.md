@@ -701,6 +701,15 @@ class FileStorage(Protocol):
 - 배포 환경: `SupabaseStorage` — Supabase Storage 버킷에 저장
 - 클라이언트에는 실제 저장 경로가 아니라 접근 가능한 public URL 또는 signed URL을 반환한다.
 
+Storage backend selection:
+
+- `STORAGE_BACKEND=local` selects `LocalFileStorage`.
+- `STORAGE_BACKEND=supabase` selects `SupabaseStorage`.
+- Supabase uses bucket `challenge-photos`.
+- Challenge photo object keys are `{photo_id}.webp`.
+- Supabase public URLs are `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}`.
+- `SUPABASE_STORAGE_PUBLIC_BASE_URL` excludes the bucket name, for example `https://<project-ref>.supabase.co/storage/v1/object/public`.
+
 ---
 
 ### 일일 토큰 초기화
