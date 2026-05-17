@@ -4,7 +4,28 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.pytest_cache/
+.coverage
+htmlcov/
 
+# IDE / Editor
+.idea/
+.vscode/
+
+# Local test files
+test_*.jpg
+test_*.jpeg
+test_*.png
+test_*.webp
+test_challenge.jpg
+
+# Local uploaded files / storage
+uploads/
+storage/
+local_storage/
+.local_storage/
+
+# Node / Frontend
 node_modules/
 .next/
 out/

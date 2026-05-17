@@ -30,6 +30,13 @@ class Errors:
     CHALLENGE_NOT_PENDING = ApiError(409, "Challenge is not pending acceptance")
     DAILY_CHALLENGE_LIMIT_REACHED = ApiError(429, "Daily challenge limit reached")
     CHALLENGE_GENERATION_FAILED = ApiError(502, "Challenge generation failed")
+    CHALLENGE_NOT_OWNED = ApiError(403, "Challenge is not owned by current user")
+    CHALLENGE_NOT_ACTIVE = ApiError(409, "Challenge is not active")
+    PHOTO_ALREADY_UPLOADED = ApiError(409, "Challenge photo already uploaded")
+    FILE_TOO_LARGE = ApiError(413, "File is too large")
+    UNSUPPORTED_IMAGE_TYPE = ApiError(415, "Unsupported image type")
+    INVALID_IMAGE = ApiError(422, "Invalid image")
+    STORAGE_WRITE_FAILED = ApiError(502, "Storage write failed")
 
 
 def error_response(error: ApiError) -> JSONResponse:

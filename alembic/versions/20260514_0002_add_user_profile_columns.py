@@ -3,11 +3,16 @@
 Revision ID: 20260514_0002
 Revises: 20260514_0001
 Create Date: 2026-05-14
+
+This migration is intentionally a no-op.
+
+The user profile columns were already included in
+20260512_0001_create_core_tables.py:
+- users.nickname
+- users.profile_image_url
+- users.updated_at
+- user_profiles.updated_at
 """
-
-from alembic import op
-import sqlalchemy as sa
-
 
 revision = "20260514_0002"
 down_revision = "20260514_0001"
@@ -16,20 +21,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("nickname", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("profile_image_url", sa.String(), nullable=True))
-    op.add_column(
-        "users",
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-    )
-    op.add_column(
-        "user_profiles",
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-    )
+    pass
 
 
 def downgrade() -> None:
-    op.drop_column("user_profiles", "updated_at")
-    op.drop_column("users", "updated_at")
-    op.drop_column("users", "profile_image_url")
-    op.drop_column("users", "nickname")
+    pass

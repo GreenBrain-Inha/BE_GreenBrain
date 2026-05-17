@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -13,19 +13,25 @@ from app.db import get_db
 from app.models import User
 from app.schemas.challenge import (
     AcceptChallengeResponse,
+    ChallengePhotoResponse,
+    ChallengePhotoUploadChallengeResponse,
+    ChallengePhotoUploadResponse,
+    ChallengePhotoUploadRewardResponse,
     ChallengeResponse,
     CurrentChallengeResponse,
     GenerateChallengeResponse,
 )
 from app.schemas.common import Errors, error_response
 from app.services.auth import get_current_user
-from app.services import challenge_gen
+from app.services import challenge_gen, challenge_photo
+from app.services.storage import FileStorage, get_file_storage
 
 
 router = APIRouter()
 
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+Storage = Annotated[FileStorage, Depends(get_file_storage)]
 
 
 @router.get("/current", response_model=CurrentChallengeResponse)
@@ -85,3 +91,60 @@ def accept_challenge(
         return error_response(Errors.CHALLENGE_NOT_PENDING)
 
     return AcceptChallengeResponse(challenge=ChallengeResponse.model_validate(challenge))
+
+
+@router.post(
+    "/{challenge_id}/photo",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ChallengePhotoUploadResponse,
+)
+def upload_challenge_photo(
+    challenge_id: UUID,
+    file: UploadFile,
+    current_user: CurrentUser,
+    db: DbSession,
+    storage: Storage,
+) -> Union[ChallengePhotoUploadResponse, JSONResponse]:
+    try:
+        result = challenge_photo.upload_challenge_photo(
+            db,
+            user_id=current_user.id,
+            challenge_id=challenge_id,
+            upload=file,
+            storage=storage,
+        )
+    except challenge_photo.ChallengeNotFound:
+        return error_response(Errors.CHALLENGE_NOT_FOUND)
+    except challenge_photo.ChallengeNotOwned:
+        return error_response(Errors.CHALLENGE_NOT_OWNED)
+    except challenge_photo.ChallengeNotActive:
+        return error_response(Errors.CHALLENGE_NOT_ACTIVE)
+    except challenge_photo.PhotoAlreadyUploaded:
+        return error_response(Errors.PHOTO_ALREADY_UPLOADED)
+    except challenge_photo.FileTooLarge:
+        return error_response(Errors.FILE_TOO_LARGE)
+    except challenge_photo.UnsupportedImageType:
+        return error_response(Errors.UNSUPPORTED_IMAGE_TYPE)
+    except challenge_photo.InvalidImage:
+        return error_response(Errors.INVALID_IMAGE)
+    except challenge_photo.StorageFailed:
+        return error_response(Errors.STORAGE_WRITE_FAILED)
+
+    return ChallengePhotoUploadResponse(
+        photo=ChallengePhotoResponse(
+            id=result.photo.id,
+            challenge_id=result.photo.challenge_id,
+            file_url=result.file_url,
+            created_at=result.photo.created_at,
+        ),
+        challenge=ChallengePhotoUploadChallengeResponse(
+            id=result.challenge.id,
+            status=result.challenge.status,
+            completed_at=result.challenge.completed_at,
+        ),
+        reward=ChallengePhotoUploadRewardResponse(
+            type="upload_reward",
+            reward_amount=result.reward_amount,
+            tokens_remaining=result.tokens_remaining,
+        ),
+    )
