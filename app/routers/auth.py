@@ -39,9 +39,21 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupRespo
     try:
         user = signup_user(db, email=payload.email, password=payload.password)
     except EmailAlreadyExists:
-        return error_response(Errors.EMAIL_ALREADY_EXISTS)
+        return JSONResponse(
+            status_code=Errors.EMAIL_ALREADY_EXISTS.status_code,
+            content={
+                "code": "EMAIL_ALREADY_EXISTS",
+                "message": Errors.EMAIL_ALREADY_EXISTS.message,
+            },
+        )
     except PasswordPolicyViolation:
-        return error_response(Errors.PASSWORD_POLICY_VIOLATION)
+        return JSONResponse(
+            status_code=Errors.PASSWORD_POLICY_VIOLATION.status_code,
+            content={
+                "code": "PASSWORD_POLICY_VIOLATION",
+                "message": Errors.PASSWORD_POLICY_VIOLATION.message,
+            },
+        )
 
     return SignupResponse(
         message="Signup successful",
