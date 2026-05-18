@@ -39,5 +39,8 @@ class Errors:
     STORAGE_WRITE_FAILED = ApiError(502, "Storage write failed")
 
 
-def error_response(error: ApiError) -> JSONResponse:
-    return JSONResponse(status_code=error.status_code, content={"message": error.message})
+def error_response(error: ApiError, *, code: str | None = None) -> JSONResponse:
+    content = {"message": error.message}
+    if code is not None:
+        content["code"] = code
+    return JSONResponse(status_code=error.status_code, content=content)

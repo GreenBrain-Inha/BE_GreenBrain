@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
@@ -9,6 +10,8 @@ from urllib.parse import quote
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class StorageWriteError(Exception):
@@ -124,7 +127,11 @@ class SupabaseStorage:
             )
             response.raise_for_status()
         except httpx.HTTPError:
-            pass
+            logger.warning(
+                "Failed to delete %s from Supabase Storage",
+                normalized_key,
+                exc_info=True,
+            )
 
     def _object_url(self, key: str) -> str:
         return (
