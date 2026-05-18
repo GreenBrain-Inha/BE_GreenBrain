@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.routers import auth, challenges, chat, users
+from app.routers import auth, challenges, chat, tokens, users
 
 app = FastAPI(title="GreenBrain API")
 
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(challenges.router, prefix="/api/challenges", tags=["challenges"])
+app.include_router(tokens.router, prefix="/api/tokens", tags=["tokens"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 
 
