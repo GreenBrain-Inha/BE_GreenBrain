@@ -84,7 +84,7 @@ class SupabaseStorage:
         self.public_base_url = (
             public_base_url or settings.supabase_storage_public_base_url
         ).rstrip("/")
-        self.client = client or httpx.Client(timeout=10.0)
+        self.client = client or httpx.Client(timeout=10.0, trust_env=False)
 
     def put(self, key: str, data: bytes, content_type: str) -> str:
         normalized_key = self._normalize_key(key)

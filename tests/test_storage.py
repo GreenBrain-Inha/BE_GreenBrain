@@ -38,6 +38,24 @@ def test_get_file_storage_selects_supabase(monkeypatch: pytest.MonkeyPatch) -> N
     assert isinstance(storage, SupabaseStorage)
 
 
+def test_get_file_storage_supabase_ignores_invalid_ssl_cert_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STORAGE_BACKEND", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://project-ref.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "challenge-photos")
+    monkeypatch.setenv(
+        "SUPABASE_STORAGE_PUBLIC_BASE_URL",
+        "https://project-ref.supabase.co/storage/v1/object/public",
+    )
+    monkeypatch.setenv("SSL_CERT_FILE", "C:/does/not/exist/cacert.pem")
+
+    storage = get_file_storage()
+
+    assert isinstance(storage, SupabaseStorage)
+
+
 def test_get_file_storage_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("STORAGE_BACKEND", "unknown")
 
