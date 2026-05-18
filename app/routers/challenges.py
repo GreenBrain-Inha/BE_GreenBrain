@@ -7,12 +7,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, UploadFile, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import User
+from app.models import Challenge, ChallengePhoto, Like, User
 from app.schemas.challenge import (
     AcceptChallengeResponse,
+    ChallengeFeedChallengeResponse,
+    ChallengeFeedItemResponse,
+    ChallengeFeedPhotoResponse,
+    ChallengeFeedResponse,
+    ChallengeFeedUserResponse,
     ChallengePhotoResponse,
     ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
@@ -42,6 +48,62 @@ def get_current_challenge(
     challenge = challenge_gen.get_current_challenge(db, user_id=current_user.id)
     return CurrentChallengeResponse(
         challenge=ChallengeResponse.model_validate(challenge) if challenge else None
+    )
+
+
+@router.get("/feed", response_model=ChallengeFeedResponse)
+def get_challenge_feed(
+    current_user: CurrentUser,
+    db: DbSession,
+    storage: Storage,
+) -> ChallengeFeedResponse:
+    del current_user
+    like_counts = (
+        select(
+            Like.photo_id.label("photo_id"),
+            func.count(Like.id).label("like_count"),
+        )
+        .group_by(Like.photo_id)
+        .subquery()
+    )
+    rows = db.execute(
+        select(
+            ChallengePhoto,
+            Challenge,
+            User,
+            func.coalesce(like_counts.c.like_count, 0),
+        )
+        .join(Challenge, Challenge.id == ChallengePhoto.challenge_id)
+        .join(User, User.id == ChallengePhoto.user_id)
+        .outerjoin(like_counts, like_counts.c.photo_id == ChallengePhoto.id)
+        .order_by(ChallengePhoto.created_at.desc())
+    ).all()
+
+    return ChallengeFeedResponse(
+        items=[
+            ChallengeFeedItemResponse(
+                photo=ChallengeFeedPhotoResponse(
+                    id=photo.id,
+                    challenge_id=photo.challenge_id,
+                    file_url=storage.get_url(photo.file_path),
+                    created_at=photo.created_at,
+                ),
+                challenge=ChallengeFeedChallengeResponse(
+                    id=challenge.id,
+                    title=challenge.title,
+                    description=challenge.description,
+                    category=challenge.category,
+                    difficulty=challenge.difficulty,
+                ),
+                user=ChallengeFeedUserResponse(
+                    id=user.id,
+                    nickname=user.nickname,
+                    profile_image_url=user.profile_image_url,
+                ),
+                like_count=int(like_count),
+            )
+            for photo, challenge, user, like_count in rows
+        ]
     )
 
 
