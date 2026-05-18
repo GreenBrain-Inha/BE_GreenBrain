@@ -30,7 +30,6 @@ class ChatSession(Base):
         sa.DateTime(timezone=True),
         nullable=False,
         server_default=sa.func.now(),
-        onupdate=sa.func.now(),
     )
 
     user: Mapped["User"] = relationship(back_populates="chat_sessions")
