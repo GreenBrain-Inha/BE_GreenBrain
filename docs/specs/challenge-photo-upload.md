@@ -159,3 +159,13 @@ API는 JWT 인증된 사용자만 호출할 수 있다.
 - `reward.reward_amount`가 0이어도 업로드 실패로 표시하지 않는다.
 - 파일 업로드 중 중복 클릭을 막기 위해 submit 버튼을 비활성화한다.
 - 응답의 `file_url`만 이미지 표시용으로 사용하고 `file_path` 또는 저장소 내부 key는 노출하지 않는다.
+
+## Storage backend policy
+
+- `STORAGE_BACKEND=local` keeps using `LocalFileStorage`.
+- `STORAGE_BACKEND=supabase` uses `SupabaseStorage`.
+- Supabase uploads use bucket `challenge-photos`.
+- Stored object keys are `{photo_id}.webp`; the bucket name is not duplicated in the object key.
+- Supabase public URLs are built as `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}`.
+- `SUPABASE_STORAGE_PUBLIC_BASE_URL` must not include the bucket name. Example: `https://<project-ref>.supabase.co/storage/v1/object/public`.
+- The API response shape does not change; clients continue to read `photo.file_url`.

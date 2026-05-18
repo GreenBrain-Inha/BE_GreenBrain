@@ -214,7 +214,8 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     assert response.status_code == 201
     body = response.json()
     assert body["photo"]["challenge_id"] == str(challenge.id)
-    assert body["photo"]["file_url"].startswith("/files/challenge-photos/")
+    assert body["photo"]["file_url"].startswith("/files/")
+    assert "/challenge-photos/" not in body["photo"]["file_url"]
     assert body["challenge"]["status"] == "completed"
     assert body["challenge"]["completed_at"] is not None
     assert body["reward"] == {
@@ -296,7 +297,7 @@ def test_photo_upload_rejects_duplicate_photo(
         ChallengePhoto(
             challenge_id=challenge.id,
             user_id=user.id,
-            file_path="challenge-photos/existing.webp",
+            file_path="existing.webp",
             upload_rewarded=True,
         )
     )
