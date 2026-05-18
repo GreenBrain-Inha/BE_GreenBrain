@@ -59,7 +59,11 @@ class Message(Base):
     role: Mapped[str] = mapped_column(sa.String, nullable=False)
     content: Mapped[str] = mapped_column(sa.Text, nullable=False)
     carbon_gco2eq: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
-    created_at: Mapped[datetime] = timestamp_column()
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("clock_timestamp()"),
+    )
 
     user: Mapped["User"] = relationship(back_populates="messages")
     session: Mapped[ChatSession] = relationship(back_populates="messages")
