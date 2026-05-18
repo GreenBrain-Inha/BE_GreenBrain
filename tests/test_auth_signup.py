@@ -98,7 +98,6 @@ def test_signup_rejects_duplicate_email_after_normalization(
 
     assert duplicate_response.status_code == 409
     assert duplicate_response.json() == {
-        "code": "EMAIL_ALREADY_EXISTS",
         "message": "Email already exists",
     }
 
@@ -125,7 +124,6 @@ def test_signup_rejects_password_policy_violations(
 
     assert response.status_code == 422
     assert response.json() == {
-        "code": "PASSWORD_POLICY_VIOLATION",
         "message": PASSWORD_POLICY_MESSAGE,
     }
     assert db_session.scalar(sa.select(sa.func.count()).select_from(User)) == 0
