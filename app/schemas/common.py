@@ -23,6 +23,7 @@ class Errors:
     LOGIN_TEMPORARILY_LOCKED = ApiError(429, "Too many failed login attempts. Try again later.")
     TOKEN_EXHAUSTED = ApiError(403, "Daily chat tokens are exhausted")
     AI_PROVIDER_ERROR = ApiError(502, "AI provider failed to generate a response")
+    UNSUPPORTED_CHAT_MODEL = ApiError(400, "Unsupported chat model")
     CHAT_SESSION_NOT_FOUND = ApiError(404, "Chat session not found")
     NOT_FOUND = ApiError(404, "Not found")
     CHALLENGE_NOT_FOUND = ApiError(404, "Challenge not found")

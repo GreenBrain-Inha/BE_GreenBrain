@@ -27,6 +27,10 @@ class Settings:
         return _require("OPENAI_API_KEY")
 
     @property
+    def runyour_api_key(self) -> str:
+        return _require("RUNYOUR_API_KEY")
+
+    @property
     def app_env(self) -> str:
         return os.getenv("APP_ENV", "prod").strip().lower()
 

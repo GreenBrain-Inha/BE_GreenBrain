@@ -58,6 +58,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(sa.String, nullable=False)
     content: Mapped[str] = mapped_column(sa.Text, nullable=False)
     carbon_gco2eq: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
+    model_id: Mapped[Optional[str]] = mapped_column(sa.String(160), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,

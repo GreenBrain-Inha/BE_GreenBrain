@@ -59,6 +59,8 @@ def test_relationship_constraints_and_indexes_are_declared() -> None:
     messages = tables["messages"]
     assert "session_id" in messages.c
     assert not messages.c.session_id.nullable
+    assert "model_id" in messages.c
+    assert messages.c.model_id.nullable
 
     chat_sessions = tables["chat_sessions"]
     assert "ix_chat_sessions_user_id" in {
@@ -122,6 +124,16 @@ def test_chat_session_alembic_migration_adds_session_table_and_message_fk() -> N
     assert 'op.add_column("messages"' in contents
     assert '"session_id"' in contents
     assert '"fk_messages_session_id_chat_sessions"' in contents
+
+
+def test_message_model_id_migration_adds_nullable_model_id() -> None:
+    migration = Path("alembic/versions/20260518_0001_add_message_model_id.py")
+
+    assert migration.exists()
+    contents = migration.read_text()
+    assert 'op.add_column("messages"' in contents
+    assert '"model_id"' in contents
+    assert "nullable=True" in contents
 
 
 def test_session_local_is_bound_when_database_is_configured() -> None:

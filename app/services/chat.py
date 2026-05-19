@@ -2,33 +2,55 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from uuid import UUID
 
-from ecologits import EcoLogits
 from openai import OpenAI, OpenAIError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Message
-from app.services.carbon import carbon_gco2eq_from_openai_response
+from app.services.carbon import carbon_gco2eq_from_model_usage
 from app.services.chat_session import get_owned_session, parse_cursor
 from app.services.daily_reset import get_or_create_today_state
 from app.services.token_account import TokenExhausted, deduct_chat_usage, ensure_chat_tokens_available
 
 
-CHAT_MODEL = "gpt-4o-mini"
-EcoLogits.init(providers=["openai"])
-
+DEFAULT_CHAT_MODEL = "openai/gpt-4.1-2025-04-14"
+TITLE_MODEL = DEFAULT_CHAT_MODEL
+_ALLOWED_PROVIDERS = frozenset({"openai", "anthropic", "gemini", "google"})
 
 class AiProviderError(Exception):
     """Raised when the AI provider cannot produce a response."""
 
 
+class UnsupportedChatModel(Exception):
+    """Raised when a requested chat model is not in the server allowlist."""
+
+
+def list_models() -> list[str]:
+    try:
+        return [m.id for m in _openai_client().models.list().data]
+    except OpenAIError as exc:
+        raise AiProviderError from exc
+
+
+def resolve_chat_model(model_id: str | None) -> str:
+    model = (model_id or DEFAULT_CHAT_MODEL).strip()
+    provider, sep, model_name = model.partition("/")
+    if sep and model_name and provider in _ALLOWED_PROVIDERS:
+        return model
+    raise UnsupportedChatModel
+
+
 def _openai_client() -> OpenAI:
     from app.core.config import settings
     try:
-        return OpenAI(api_key=settings.openai_api_key)
+        return OpenAI(
+            api_key=settings.runyour_api_key,
+            base_url="https://api.runyour.ai/v1",
+        )
     except RuntimeError:
         raise AiProviderError
 
@@ -51,25 +73,37 @@ def generate_ai_response(
     *,
     session_id: UUID,
     message: str,
+    model_id: str,
 ) -> tuple[str, float | None]:
     try:
+        timer_start = time.perf_counter()
         response = _openai_client().chat.completions.create(
-            model=CHAT_MODEL,
+            model=model_id,
             messages=_build_history(db, session_id=session_id, latest_message=message),
         )
+        request_latency = time.perf_counter() - timer_start
     except OpenAIError as exc:
+        if getattr(exc, "status_code", None) == 404:
+            raise UnsupportedChatModel from exc
         raise AiProviderError from exc
 
     content = response.choices[0].message.content if response.choices else None
     if not content:
         raise AiProviderError
-    return content, carbon_gco2eq_from_openai_response(response)
+
+    output_tokens = getattr(getattr(response, "usage", None), "completion_tokens", None)
+    carbon_gco2eq = carbon_gco2eq_from_model_usage(
+        model_id=model_id,
+        output_token_count=output_tokens,
+        request_latency=request_latency,
+    )
+    return content, carbon_gco2eq
 
 
 def _generate_title(message: str) -> str | None:
     try:
         response = _openai_client().chat.completions.create(
-            model=CHAT_MODEL,
+            model=TITLE_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -98,7 +132,9 @@ def send_message(
     user_id: UUID,
     session_id: UUID,
     message: str,
+    model_id: str | None = None,
 ) -> tuple[Message, Message, float, bool, str | None]:
+    chat_model = resolve_chat_model(model_id)
     session = get_owned_session(db, user_id=user_id, session_id=session_id)
     state = get_or_create_today_state(db, user_id)
     ensure_chat_tokens_available(state)
@@ -113,7 +149,12 @@ def send_message(
     db.flush()
 
     try:
-        response_text, carbon_gco2eq = generate_ai_response(db, session_id=session.id, message=message)
+        response_text, carbon_gco2eq = generate_ai_response(
+            db,
+            session_id=session.id,
+            message=message,
+            model_id=chat_model,
+        )
     except AiProviderError:
         db.rollback()
         raise
@@ -124,6 +165,7 @@ def send_message(
         role="assistant",
         content=response_text,
         carbon_gco2eq=carbon_gco2eq,
+        model_id=chat_model,
     )
     db.add(response_message)
     db.flush()
