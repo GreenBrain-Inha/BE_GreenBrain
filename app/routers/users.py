@@ -10,6 +10,7 @@ from app.db import get_db
 from app.models import User, UserProfile
 from app.schemas.common import Errors, error_response
 from app.schemas.user import (
+    TodayTokensSummaryResponse,
     UserMeResponse,
     UserMeUpdateRequest,
     UserOnboardingRequest,
@@ -17,13 +18,28 @@ from app.schemas.user import (
     UserProfileUpdateRequest,
 )
 from app.services.auth import get_current_user
+from app.services.daily_reset import get_or_create_today_state
 
 router = APIRouter()
 
 
 @router.get("/me", response_model=UserMeResponse)
-def get_me(current_user: User = Depends(get_current_user)) -> UserMeResponse:
-    return UserMeResponse.model_validate(current_user)
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserMeResponse:
+    state = get_or_create_today_state(db, current_user.id)
+    db.commit()
+    db.refresh(state)
+    return UserMeResponse(
+        id=current_user.id,
+        email=current_user.email,
+        nickname=current_user.nickname,
+        profile_image_url=current_user.profile_image_url,
+        onboarding_completed=current_user.profile is not None,
+        profile=UserProfileResponse.model_validate(current_user.profile) if current_user.profile else None,
+        today_tokens=TodayTokensSummaryResponse(date=state.date, tokens_remaining=state.tokens_remaining),
+    )
 
 
 @router.patch("/me", response_model=UserMeResponse)

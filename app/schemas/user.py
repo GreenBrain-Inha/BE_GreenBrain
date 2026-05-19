@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
+class TodayTokensSummaryResponse(BaseModel):
+    date: date
+    tokens_remaining: float
 
 
 class UserMeResponse(BaseModel):
@@ -13,6 +19,9 @@ class UserMeResponse(BaseModel):
     email: str
     nickname: Optional[str]
     profile_image_url: Optional[str]
+    onboarding_completed: bool
+    profile: Optional[UserProfileResponse] = None
+    today_tokens: TodayTokensSummaryResponse
 
     class Config:
         from_attributes = True
@@ -42,3 +51,6 @@ class UserOnboardingRequest(BaseModel):
     transport_mode: str
     diet_type: str
     housing_type: str
+
+
+UserMeResponse.model_rebuild()
