@@ -30,7 +30,10 @@ class UnsupportedChatModel(Exception):
 
 
 def list_models() -> list[str]:
-    return [m.id for m in _openai_client().models.list().data]
+    try:
+        return [m.id for m in _openai_client().models.list().data]
+    except OpenAIError as exc:
+        raise AiProviderError from exc
 
 
 def resolve_chat_model(model_id: str | None) -> str:
@@ -80,6 +83,8 @@ def generate_ai_response(
         )
         request_latency = time.perf_counter() - timer_start
     except OpenAIError as exc:
+        if getattr(exc, "status_code", None) == 404:
+            raise UnsupportedChatModel from exc
         raise AiProviderError from exc
 
     content = response.choices[0].message.content if response.choices else None
