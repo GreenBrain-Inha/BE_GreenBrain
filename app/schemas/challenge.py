@@ -86,3 +86,6 @@ class ChallengePhotoLikeResponse(BaseModel):
     photo_id: UUID
     liked: bool
     like_count: int
+    reward_given: bool
+    reward_amount: float
+    tokens_remaining: Optional[float]

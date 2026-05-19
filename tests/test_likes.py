@@ -87,6 +87,9 @@ def test_like_challenge_photo_creates_like_and_returns_count(
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 2,
+        "reward_given": False,
+        "reward_amount": 0.0,
+        "tokens_remaining": None,
     }
     like = db_session.scalar(
         select(Like).where(Like.photo_id == photo.id, Like.liker_user_id == liker.id)

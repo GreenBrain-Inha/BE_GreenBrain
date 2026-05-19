@@ -30,7 +30,7 @@ def like_challenge_photo(
     db: DbSession,
 ) -> Union[ChallengePhotoLikeResponse, JSONResponse]:
     try:
-        like_count = challenge_like.like_challenge_photo(
+        result = challenge_like.like_challenge_photo(
             db,
             user_id=current_user.id,
             photo_id=photo_id,
@@ -42,4 +42,11 @@ def like_challenge_photo(
     except challenge_like.PhotoAlreadyLiked:
         return error_response(Errors.PHOTO_ALREADY_LIKED)
 
-    return ChallengePhotoLikeResponse(photo_id=photo_id, liked=True, like_count=like_count)
+    return ChallengePhotoLikeResponse(
+        photo_id=result.photo_id,
+        liked=True,
+        like_count=result.like_count,
+        reward_given=result.reward_given,
+        reward_amount=result.reward_amount,
+        tokens_remaining=result.tokens_remaining,
+    )
