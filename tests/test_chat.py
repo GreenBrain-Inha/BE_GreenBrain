@@ -25,7 +25,9 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     session = create_chat_session(db_session, user)
 
     monkeypatch.setattr(
-        chat_service, "generate_ai_response", lambda db, *, session_id, message: ("AI 답변", 0.5)
+        chat_service,
+        "generate_ai_response",
+        lambda db, *, session_id, message, model_id: ("AI 답변", 0.5),
     )
     monkeypatch.setattr(chat_service, "_generate_title", lambda message: "테스트 제목")
 
@@ -42,6 +44,7 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     assert body["tokens_remaining"] == 149.5
     assert body["exhausted"] is False
     assert body["session_title"] == "테스트 제목"
+    assert body["model_id"] == chat_service.DEFAULT_CHAT_MODEL
     assert UUID(body["message_id"])
     assert UUID(body["response_message_id"])
 
@@ -53,6 +56,75 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     assert transaction is not None
     assert transaction.type == "chat_usage"
     assert transaction.amount == -0.5
+
+    assistant_message = db_session.get(Message, UUID(body["response_message_id"]))
+    assert assistant_message is not None
+    assert assistant_message.model_id == chat_service.DEFAULT_CHAT_MODEL
+
+
+
+def test_send_message_uses_requested_supported_model(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session)
+    session = create_chat_session(db_session, user)
+    seen_model_id = None
+
+    def fake_generate_ai_response(
+        db: Session,
+        *,
+        session_id: UUID,
+        message: str,
+        model_id: str,
+    ) -> tuple[str, float]:
+        nonlocal seen_model_id
+        seen_model_id = model_id
+        return "Claude 답변", 0.25
+
+    monkeypatch.setattr(chat_service, "generate_ai_response", fake_generate_ai_response)
+    monkeypatch.setattr(chat_service, "_generate_title", lambda message: "모델 테스트")
+
+    response = client.post(
+        f"/api/chat/sessions/{session.id}/messages",
+        json={"message": "모델 선택", "model_id": "anthropic/claude-sonnet-4-6"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["model_id"] == "anthropic/claude-sonnet-4-6"
+    assert seen_model_id == "anthropic/claude-sonnet-4-6"
+
+    assistant_message = db_session.get(Message, UUID(body["response_message_id"]))
+    assert assistant_message is not None
+    assert assistant_message.model_id == "anthropic/claude-sonnet-4-6"
+
+
+def test_send_message_rejects_unsupported_model_before_ai_call(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session)
+    session = create_chat_session(db_session, user)
+
+    def fail(*args: object, **kwargs: object) -> tuple[str, float]:
+        raise AssertionError("AI should not be called for unsupported models")
+
+    monkeypatch.setattr(chat_service, "generate_ai_response", fail)
+
+    response = client.post(
+        f"/api/chat/sessions/{session.id}/messages",
+        json={"message": "모델 선택", "model_id": "unknown/some-model"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "Unsupported chat model"
+    assert db_session.scalars(select(Message)).all() == []
+
 
 
 def test_send_message_title_not_set_on_subsequent_messages(
@@ -66,7 +138,9 @@ def test_send_message_title_not_set_on_subsequent_messages(
     db_session.commit()
 
     monkeypatch.setattr(
-        chat_service, "generate_ai_response", lambda db, *, session_id, message: ("응답", 0.1)
+        chat_service,
+        "generate_ai_response",
+        lambda db, *, session_id, message, model_id: ("응답", 0.1),
     )
 
     response = client.post(
@@ -88,7 +162,9 @@ def test_send_message_title_falls_back_to_first_30_chars_when_ai_fails(
     session = create_chat_session(db_session, user)
 
     monkeypatch.setattr(
-        chat_service, "generate_ai_response", lambda db, *, session_id, message: ("응답", None)
+        chat_service,
+        "generate_ai_response",
+        lambda db, *, session_id, message, model_id: ("응답", None),
     )
     monkeypatch.setattr(chat_service, "_generate_title", lambda message: None)
 
@@ -178,6 +254,7 @@ def test_list_messages_uses_cursor_pagination(
                 session_id=session.id,
                 role="user",
                 content=f"message-{i}",
+                model_id="openai/gpt-5.2",
                 created_at=datetime(2026, 5, 14, 0, i, tzinfo=timezone.utc),
             )
         )
@@ -190,6 +267,7 @@ def test_list_messages_uses_cursor_pagination(
     assert first_response.status_code == 200
     first_body = first_response.json()
     assert [m["content"] for m in first_body["items"]] == ["message-1", "message-2"]
+    assert [m["model_id"] for m in first_body["items"]] == ["openai/gpt-5.2", "openai/gpt-5.2"]
     assert first_body["next_cursor"]
 
     second_response = client.get(

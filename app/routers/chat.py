@@ -16,6 +16,7 @@ from app.models import User
 from app.schemas.chat import (
     ChatMessageItem,
     ChatMessageListResponse,
+    ChatModelListResponse,
     ChatRequest,
     ChatResponse,
 )
@@ -61,6 +62,14 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+@router.get("/models", response_model=ChatModelListResponse)
+def list_chat_models(current_user: CurrentUser) -> Union[ChatModelListResponse, JSONResponse]:
+    try:
+        return ChatModelListResponse(items=chat_service.list_models())
+    except chat_service.AiProviderError:
+        return error_response(Errors.AI_PROVIDER_ERROR)
 
 
 @router.post(
@@ -164,12 +173,15 @@ def send_chat_message(
                 user_id=current_user.id,
                 session_id=session_id,
                 message=payload.message,
+                model_id=payload.model_id,
             )
         )
     except ChatSessionNotFound:
         return error_response(Errors.CHAT_SESSION_NOT_FOUND)
     except TokenExhausted:
         return error_response(Errors.TOKEN_EXHAUSTED)
+    except chat_service.UnsupportedChatModel:
+        return error_response(Errors.UNSUPPORTED_CHAT_MODEL)
     except chat_service.AiProviderError:
         return error_response(Errors.AI_PROVIDER_ERROR)
 
@@ -181,6 +193,7 @@ def send_chat_message(
         tokens_remaining=tokens_remaining,
         exhausted=exhausted,
         session_title=session_title,
+        model_id=response_message.model_id or chat_service.DEFAULT_CHAT_MODEL,
     )
 
 
@@ -211,6 +224,7 @@ def list_chat_messages(
                 role=message.role,
                 content=message.content,
                 carbon_gco2eq=message.carbon_gco2eq,
+                model_id=message.model_id,
                 created_at=message.created_at,
             )
             for message in messages
