@@ -1,6 +1,6 @@
 # DB Schema
 
-Generated from SQLAlchemy models and Alembic revision `20260514_0001`.
+Generated from SQLAlchemy models and Alembic revision `20260518_0001`.
 
 ## users
 
@@ -32,6 +32,7 @@ Generated from SQLAlchemy models and Alembic revision `20260514_0001`.
 - `role`: string, required
 - `content`: text, required
 - `carbon_gco2eq`: float, nullable
+- `model_id`: string, nullable, max length 160
 - `created_at`: timestamp with timezone, default `now()`
 
 ## daily_token_state
