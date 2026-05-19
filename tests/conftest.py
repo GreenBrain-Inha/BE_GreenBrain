@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -30,6 +31,15 @@ def db_session() -> Generator[Session, None, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+    @event.listens_for(engine, "connect")
+    def register_sqlite_functions(dbapi_connection: object, _: object) -> None:
+        dbapi_connection.create_function(
+            "clock_timestamp",
+            0,
+            lambda: datetime.now(timezone.utc).isoformat(sep=" "),
+        )
+
     Base.metadata.create_all(engine)
     TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 

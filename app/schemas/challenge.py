@@ -58,3 +58,25 @@ class ChallengePhotoUploadResponse(BaseModel):
     photo: ChallengePhotoResponse
     challenge: ChallengePhotoUploadChallengeResponse
     reward: ChallengePhotoUploadRewardResponse
+
+
+class ChallengeFeedItemResponse(BaseModel):
+    photo_id: UUID
+    challenge_id: UUID
+    user_id: UUID
+    nickname: Optional[str]
+    profile_image_url: Optional[str]
+    title: str
+    category: str
+    photo_url: str
+    like_count: int
+    liked_by_me: bool
+    carbon_saved_gco2eq: Optional[float]
+    created_at: datetime
+
+
+class ChallengeFeedResponse(BaseModel):
+    items: list[ChallengeFeedItemResponse]
+    total: int
+    limit: int
+    offset: int

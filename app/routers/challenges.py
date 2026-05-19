@@ -5,14 +5,17 @@ from __future__ import annotations
 from typing import Annotated, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Response, UploadFile, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import User
+from app.models import Challenge, ChallengePhoto, Like, User
 from app.schemas.challenge import (
     AcceptChallengeResponse,
+    ChallengeFeedItemResponse,
+    ChallengeFeedResponse,
     ChallengePhotoResponse,
     ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
@@ -42,6 +45,69 @@ def get_current_challenge(
     challenge = challenge_gen.get_current_challenge(db, user_id=current_user.id)
     return CurrentChallengeResponse(
         challenge=ChallengeResponse.model_validate(challenge) if challenge else None
+    )
+
+
+@router.get("/feed", response_model=ChallengeFeedResponse)
+def get_challenge_feed(
+    current_user: CurrentUser,
+    db: DbSession,
+    storage: Storage,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ChallengeFeedResponse:
+    like_counts = (
+        select(
+            Like.photo_id.label("photo_id"),
+            func.count(Like.id).label("like_count"),
+        )
+        .group_by(Like.photo_id)
+        .subquery()
+    )
+    liked_by_me = (
+        select(Like.photo_id.label("photo_id"))
+        .where(Like.liker_user_id == current_user.id)
+        .subquery()
+    )
+    total = db.scalar(select(func.count()).select_from(ChallengePhoto)) or 0
+    rows = db.execute(
+        select(
+            ChallengePhoto,
+            Challenge,
+            User,
+            func.coalesce(like_counts.c.like_count, 0),
+            liked_by_me.c.photo_id.is_not(None),
+        )
+        .join(Challenge, Challenge.id == ChallengePhoto.challenge_id)
+        .join(User, User.id == ChallengePhoto.user_id)
+        .outerjoin(like_counts, like_counts.c.photo_id == ChallengePhoto.id)
+        .outerjoin(liked_by_me, liked_by_me.c.photo_id == ChallengePhoto.id)
+        .order_by(ChallengePhoto.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+
+    return ChallengeFeedResponse(
+        items=[
+            ChallengeFeedItemResponse(
+                photo_id=photo.id,
+                challenge_id=photo.challenge_id,
+                user_id=user.id,
+                nickname=user.nickname,
+                profile_image_url=user.profile_image_url,
+                title=challenge.title,
+                category=challenge.category,
+                photo_url=storage.get_url(photo.file_path),
+                like_count=int(like_count),
+                liked_by_me=bool(liked),
+                carbon_saved_gco2eq=None,
+                created_at=photo.created_at,
+            )
+            for photo, challenge, user, like_count, liked in rows
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
