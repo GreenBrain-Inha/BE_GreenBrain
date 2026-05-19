@@ -80,3 +80,9 @@ class ChallengeFeedResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ChallengePhotoLikeResponse(BaseModel):
+    photo_id: UUID
+    liked: bool
+    like_count: int
