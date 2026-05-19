@@ -38,8 +38,8 @@ def list_models() -> list[str]:
 
 def resolve_chat_model(model_id: str | None) -> str:
     model = (model_id or DEFAULT_CHAT_MODEL).strip()
-    provider = model.partition("/")[0]
-    if provider in _ALLOWED_PROVIDERS:
+    provider, sep, model_name = model.partition("/")
+    if sep and model_name and provider in _ALLOWED_PROVIDERS:
         return model
     raise UnsupportedChatModel
 
