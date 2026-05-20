@@ -59,7 +59,7 @@ def login(
     client_ip = request.client.host if request.client is not None else "unknown"
 
     try:
-        access_token = login_user(
+        login_result = login_user(
             db,
             email=payload.email,
             password=payload.password,
@@ -72,13 +72,16 @@ def login(
 
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
-        value=access_token,
+        value=login_result.access_token,
         max_age=JWT_MAX_AGE_SECONDS,
         httponly=True,
         secure=is_cookie_secure(),
         samesite="strict",
     )
-    return LoginResponse(message="Login successful")
+    return LoginResponse(
+        message="Login successful",
+        onboarding_completed=login_result.onboarding_completed,
+    )
 
 
 @router.post("/logout", response_model=LogoutResponse)

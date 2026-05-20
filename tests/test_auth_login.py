@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.main import app
-from app.models import User
+from app.models import User, UserProfile
 from app.services import auth as auth_service
 
 
@@ -43,13 +43,13 @@ def db_session() -> Generator[Session, None, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine, tables=[User.__table__])
+    Base.metadata.create_all(engine, tables=[User.__table__, UserProfile.__table__])
     TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
     with TestingSessionLocal() as session:
         yield session
 
-    Base.metadata.drop_all(engine, tables=[User.__table__])
+    Base.metadata.drop_all(engine, tables=[UserProfile.__table__, User.__table__])
     engine.dispose()
 
 
@@ -100,7 +100,10 @@ def test_login_sets_local_httponly_jwt_cookie(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Login successful"}
+    assert response.json() == {
+        "message": "Login successful",
+        "onboarding_completed": False,
+    }
 
     set_cookie = response.headers["set-cookie"]
     assert "access_token=" in set_cookie
@@ -114,6 +117,34 @@ def test_login_sets_local_httponly_jwt_cookie(
     payload = jwt.decode(token, "test-secret", algorithms=["HS256"])
     assert payload["sub"] == str(user.id)
     assert UUID(payload["sub"]) == user.id
+
+
+def test_login_returns_onboarding_completed_for_profiled_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session, email="user@example.com", password="Password123")
+    db_session.add(
+        UserProfile(
+            user_id=user.id,
+            transport_mode="transit",
+            diet_type="omnivore",
+            housing_type="apartment",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "Password123"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Login successful",
+        "onboarding_completed": True,
+    }
+    assert "access_token=" in response.headers["set-cookie"]
 
 
 def test_login_sets_secure_cookie_in_production(
@@ -155,6 +186,7 @@ def test_login_returns_same_error_for_unknown_email_and_wrong_password(
 
     assert response.status_code == 401
     assert response.json() == INVALID_CREDENTIALS_BODY
+    assert "onboarding_completed" not in response.json()
     assert "set-cookie" not in response.headers
 
 

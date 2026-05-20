@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from uuid import UUID
-
 from jose import jwt, JWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -49,12 +47,16 @@ class LoginTemporarilyLocked(Exception):
     """Raised when an email and IP pair is temporarily locked."""
 
 
-
-
 @dataclass
 class LoginAttemptState:
     failed_count: int = 0
     locked_until: datetime | None = None
+
+
+@dataclass(frozen=True)
+class LoginResult:
+    access_token: str
+    onboarding_completed: bool
 
 
 _login_attempts: dict[tuple[str, str], LoginAttemptState] = {}
@@ -88,7 +90,6 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
 
 
 def create_access_token(user_id: UUID, *, now: datetime | None = None) -> str:
@@ -183,7 +184,7 @@ def get_current_user(
     return user
 
 
-def login_user(db: Session, *, email: str, password: str, client_ip: str) -> str:
+def login_user(db: Session, *, email: str, password: str, client_ip: str) -> LoginResult:
     normalized_email = normalize_email(email)
     key = _attempt_key(normalized_email, client_ip)
     now = _utcnow()
@@ -196,4 +197,7 @@ def login_user(db: Session, *, email: str, password: str, client_ip: str) -> str
         raise InvalidCredentials
 
     _record_successful_login(key)
-    return create_access_token(user.id, now=now)
+    return LoginResult(
+        access_token=create_access_token(user.id, now=now),
+        onboarding_completed=user.profile is not None,
+    )
