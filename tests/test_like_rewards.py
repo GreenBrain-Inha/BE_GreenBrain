@@ -147,7 +147,7 @@ def test_third_like_grants_reward_to_photo_uploader_and_records_transaction(
     assert transaction.milestone == 3
 
 
-def test_like_reward_is_capped_at_max_daily_tokens(
+def test_like_reward_can_recover_tokens_above_daily_base_amount(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -176,18 +176,62 @@ def test_like_reward_is_capped_at_max_daily_tokens(
         "liked": True,
         "like_count": 3,
         "reward_given": True,
-        "reward_amount": 10.0,
-        "tokens_remaining": 150.0,
+        "reward_amount": 20.0,
+        "tokens_remaining": 160.0,
     }
     db_session.refresh(state)
-    assert state.tokens_remaining == 150.0
-    assert state.like_reward_given == 10.0
-    assert state.total_reward_given == 10.0
+    assert state.tokens_remaining == 160.0
+    assert state.like_reward_given == 20.0
+    assert state.total_reward_given == 20.0
 
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None
-    assert transaction.amount == 10.0
-    assert transaction.balance_after == 150.0
+    assert transaction.amount == 20.0
+    assert transaction.balance_after == 160.0
+    assert transaction.milestone == 3
+
+
+def test_like_reward_is_granted_when_tokens_are_already_at_daily_base_amount(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    uploader = create_user(db_session, email="base-uploader@example.com")
+    liker_1 = create_user(db_session, email="base-liker-1@example.com")
+    liker_2 = create_user(db_session, email="base-liker-2@example.com")
+    liker_3 = create_user(db_session, email="base-liker-3@example.com")
+    photo = create_challenge_photo(db_session, uploader)
+    state = create_daily_state(db_session, uploader, tokens_remaining=150.0)
+    db_session.add_all(
+        [
+            Like(photo_id=photo.id, liker_user_id=liker_1.id),
+            Like(photo_id=photo.id, liker_user_id=liker_2.id),
+        ]
+    )
+    db_session.commit()
+
+    response = client.post(
+        f"/api/challenge-photos/{photo.id}/like",
+        headers=auth_headers(liker_3),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "photo_id": str(photo.id),
+        "liked": True,
+        "like_count": 3,
+        "reward_given": True,
+        "reward_amount": 20.0,
+        "tokens_remaining": 170.0,
+    }
+    db_session.refresh(state)
+    assert state.tokens_remaining == 170.0
+    assert state.like_reward_given == 20.0
+    assert state.total_reward_given == 20.0
+
+    transaction = db_session.scalar(select(TokenTransaction))
+    assert transaction is not None
+    assert transaction.amount == 20.0
+    assert transaction.balance_after == 170.0
     assert transaction.milestone == 3
 
 

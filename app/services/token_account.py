@@ -86,11 +86,8 @@ def grant_like_reward(
     photo_id: UUID,
     milestone: int,
 ) -> float:
-    reward_amount = min(
-        LIKE_REWARD_AMOUNT,
-        max(MAX_DAILY_TOKENS - state.tokens_remaining, 0.0),
-    )
-    state.tokens_remaining = min(state.tokens_remaining + reward_amount, MAX_DAILY_TOKENS)
+    reward_amount = LIKE_REWARD_AMOUNT
+    state.tokens_remaining += reward_amount
     state.like_reward_given += reward_amount
     state.total_reward_given += reward_amount
 
