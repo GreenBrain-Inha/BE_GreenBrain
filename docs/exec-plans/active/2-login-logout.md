@@ -20,7 +20,7 @@
 
 - Add login/logout Pydantic request and response schemas.
 - Verify bcrypt password hashes created by signup.
-- Issue a 7-day JWT in an `access_token` HttpOnly cookie on successful login.
+- Issue a 30-minute JWT in an `access_token` HttpOnly cookie on successful login.
 - Track failed login attempts by normalized email and client IP.
 - Lock login for 15 minutes after more than 5 failures.
 - Clear the auth cookie on logout.
@@ -52,5 +52,5 @@ python3 -m pytest
 - Router remains thin and delegates business logic to `services/auth.py`.
 - Login errors do not reveal whether the email exists.
 - Response bodies never expose password hashes or JWTs.
-- Cookie attributes include `HttpOnly`, `Secure`, `SameSite=Strict`, and `Max-Age=604800`.
+- Cookie attributes include `HttpOnly`, `Secure`, `SameSite=Strict`, and `Max-Age=1800`.
 - Login lockout is scoped to normalized email plus client IP.

@@ -35,7 +35,7 @@ MVP 속도 최우선. 작동하는 최소 구현을 선택한다. 외부 의존�
 ---
 
 ### ADR-005: JWT를 HttpOnly 쿠키에 저장
-**결정**: 인증 토큰을 localStorage 대신 HttpOnly + Secure 쿠키에 저장하고, 만료는 7일로 설정한다.
+**결정**: 인증 토큰을 localStorage 대신 HttpOnly + Secure 쿠키에 저장하고, 만료는 30분으로 설정한다.
 **이유**: HttpOnly 쿠키는 JavaScript로 접근할 수 없어 XSS 공격으로부터 토큰을 보호한다. SameSite=Strict로 CSRF도 방어한다.
 **트레이드오프**: 모바일 앱이나 서드파티 클라이언트에서 쿠키 기반 인증을 다루기 번거롭다. MVP는 웹 전용이므로 문제없다.
 

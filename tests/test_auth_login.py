@@ -109,7 +109,7 @@ def test_login_sets_local_httponly_jwt_cookie(
     assert "access_token=" in set_cookie
     assert "HttpOnly" in set_cookie
     assert "Secure" not in set_cookie
-    assert "Max-Age=604800" in set_cookie
+    assert "Max-Age=1800" in set_cookie
     assert "SameSite=strict" in set_cookie
 
     cookie = parse_set_cookie(response)

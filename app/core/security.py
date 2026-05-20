@@ -7,7 +7,7 @@ from app.core.config import settings
 
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
 JWT_ALGORITHM = "HS256"
-JWT_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+JWT_MAX_AGE_SECONDS = 30 * 60
 LOGIN_MAX_FAILED_ATTEMPTS = 5
 LOGIN_LOCKOUT_SECONDS = 15 * 60
 _LOCAL_APP_ENVS = {"dev", "development", "local", "test"}

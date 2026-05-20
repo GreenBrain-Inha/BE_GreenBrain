@@ -660,7 +660,7 @@ type = like_reward인 token_transactions에 대해
 ## 7. Auth & Security
 
 - JWT는 HttpOnly + Secure 쿠키에 저장한다.
-- JWT 만료 시간은 7일로 설정한다.
+- JWT 만료 시간은 30분으로 설정한다.
 - 비밀번호는 bcrypt로 해시 저장한다.
 - 비밀번호는 최소 8자 이상이며, 대소문자와 숫자를 포함해야 한다.
 - 로그인 실패 5회 초과 시 15분 동안 잠금 처리한다.
