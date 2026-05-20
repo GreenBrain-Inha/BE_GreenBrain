@@ -48,7 +48,8 @@
 
 ```json
 {
-  "message": "Login successful"
+  "message": "Login successful",
+  "onboarding_completed": false
 }
 ```
 
@@ -57,7 +58,8 @@
   - Value: JWT
   - Attributes: `HttpOnly`, `Secure`, `SameSite=Strict`, `Max-Age=604800`
 
-로그인 성공 응답 body에는 사용자 정보를 포함하지 않는다. 현재 사용자 정보는 별도 `GET /api/users/me`에서 조회한다.
+`onboarding_completed`는 기존 `GET /api/users/me`와 동일하게 사용자 생활 습관 프로필 존재 여부로 판단한다.
+로그인 성공 응답 body에는 그 외 사용자 정보를 포함하지 않는다. 현재 사용자 상세 정보는 별도 `GET /api/users/me`에서 조회한다.
 
 #### Error Responses
 
@@ -121,11 +123,14 @@
 - 같은 이메일+IP 조합에서 실패가 5회를 초과하면 15분 동안 로그인 요청을 차단한다.
 - 잠금 상태에서는 올바른 비밀번호가 들어와도 로그인에 성공하지 않는다.
 - 로그인 성공 시 해당 이메일+IP 조합의 실패 카운트를 초기화한다.
+- 로그인 성공 응답의 `onboarding_completed`는 `user_profiles` 행이 있으면 `true`, 없으면 `false`다.
 - `routers/`는 요청 검증과 service 호출만 담당하고, 인증 비즈니스 로직은 service 계층에 둔다.
 
 ## 테스트 및 인수 기준
 
 - 올바른 이메일/비밀번호로 로그인하면 `200 OK`와 `Set-Cookie: access_token=...`이 반환된다.
+- 온보딩 프로필이 없는 사용자가 로그인하면 `onboarding_completed: false`가 반환된다.
+- 온보딩 프로필이 있는 사용자가 로그인하면 `onboarding_completed: true`가 반환된다.
 - 로그인 성공 쿠키에는 `HttpOnly`, `Secure`, `SameSite=Strict`, 7일 만료 속성이 포함된다.
 - 존재하지 않는 이메일은 `401 INVALID_CREDENTIALS`를 반환한다.
 - 잘못된 비밀번호는 `401 INVALID_CREDENTIALS`를 반환한다.

@@ -47,6 +47,7 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     message: str
+    onboarding_completed: bool
 
 
 class LogoutResponse(BaseModel):
