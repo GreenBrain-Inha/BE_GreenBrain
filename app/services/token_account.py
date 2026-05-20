@@ -10,6 +10,7 @@ from app.models import DailyTokenState, TokenTransaction
 
 MAX_DAILY_TOKENS = 150.0
 UPLOAD_REWARD_AMOUNT = 20.0
+LIKE_REWARD_AMOUNT = 20.0
 
 
 class TokenExhausted(Exception):
@@ -72,6 +73,34 @@ def grant_upload_reward(
         source_type="photo",
         source_id=photo_id,
         memo="Challenge photo upload reward",
+    )
+    db.add(transaction)
+    return reward_amount
+
+
+def grant_like_reward(
+    db: Session,
+    *,
+    state: DailyTokenState,
+    user_id: UUID,
+    photo_id: UUID,
+    milestone: int,
+) -> float:
+    reward_amount = LIKE_REWARD_AMOUNT
+    state.tokens_remaining += reward_amount
+    state.like_reward_given += reward_amount
+    state.total_reward_given += reward_amount
+
+    transaction = TokenTransaction(
+        user_id=user_id,
+        daily_state_date=state.date,
+        type="like_reward",
+        amount=reward_amount,
+        balance_after=state.tokens_remaining,
+        source_type="photo",
+        source_id=photo_id,
+        milestone=milestone,
+        memo="Challenge photo like milestone reward",
     )
     db.add(transaction)
     return reward_amount
