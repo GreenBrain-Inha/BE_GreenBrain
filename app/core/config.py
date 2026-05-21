@@ -61,7 +61,7 @@ class Settings:
 
     @property
     def supabase_storage_bucket(self) -> str:
-        return os.getenv("SUPABASE_STORAGE_BUCKET", "challenge-photos")
+        return os.getenv("SUPABASE_STORAGE_BUCKET", "greenbrain-uploads")
 
     @property
     def supabase_storage_public_base_url(self) -> str:

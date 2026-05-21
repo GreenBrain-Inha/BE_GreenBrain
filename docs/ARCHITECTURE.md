@@ -705,8 +705,9 @@ Storage backend selection:
 
 - `STORAGE_BACKEND=local` selects `LocalFileStorage`.
 - `STORAGE_BACKEND=supabase` selects `SupabaseStorage`.
-- Supabase uses bucket `challenge-photos`.
-- Challenge photo object keys are `{photo_id}.webp`.
+- Supabase uses bucket `greenbrain-uploads`.
+- Challenge photo object keys are `challenge-photos/{photo_id}.webp`.
+- Profile image object keys are `profile-images/{user_id}/{uuid}.webp`.
 - Supabase public URLs are `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}`.
 - `SUPABASE_STORAGE_PUBLIC_BASE_URL` excludes the bucket name, for example `https://<project-ref>.supabase.co/storage/v1/object/public`.
 
