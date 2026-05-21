@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import AnyUrl, BaseModel, Field
 
 
 class TodayTokensSummaryResponse(BaseModel):
@@ -28,8 +28,19 @@ class UserMeResponse(BaseModel):
 
 
 class UserMeUpdateRequest(BaseModel):
-    nickname: Optional[str] = None
-    profile_image_url: Optional[str] = None
+    nickname: Optional[str] = Field(default=None, min_length=1)
+    profile_image_url: Optional[AnyUrl] = None
+
+
+class UserMeUpdateResponse(BaseModel):
+    id: UUID
+    email: str
+    nickname: Optional[str]
+    profile_image_url: Optional[str]
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class UserProfileResponse(BaseModel):

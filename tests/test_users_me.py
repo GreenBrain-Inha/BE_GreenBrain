@@ -19,6 +19,14 @@ EXPECTED_FIELDS = {
     "today_tokens",
 }
 
+UPDATE_RESPONSE_FIELDS = {
+    "id",
+    "email",
+    "nickname",
+    "profile_image_url",
+    "updated_at",
+}
+
 
 def test_get_me_requires_authentication(client: TestClient) -> None:
     response = client.get("/api/users/me")
@@ -63,3 +71,80 @@ def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None
         "housing_type": "apartment",
     }
     assert body["today_tokens"]["tokens_remaining"] == 150.0
+
+
+def test_update_me_updates_profile_image_url(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    response = client.patch(
+        "/api/users/me",
+        json={"profile_image_url": "https://example.com/profile.png"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == UPDATE_RESPONSE_FIELDS
+    assert body["id"] == str(user.id)
+    assert body["email"] == user.email
+    assert body["profile_image_url"] == "https://example.com/profile.png"
+    assert body["updated_at"] is not None
+
+    db_session.refresh(user)
+    assert user.profile_image_url == "https://example.com/profile.png"
+
+
+def test_update_me_updates_nickname(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    response = client.patch(
+        "/api/users/me",
+        json={"nickname": "Green User"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == UPDATE_RESPONSE_FIELDS
+    assert body["nickname"] == "Green User"
+    assert body["profile_image_url"] is None
+    assert body["updated_at"] is not None
+
+    db_session.refresh(user)
+    assert user.nickname == "Green User"
+
+
+def test_update_me_rejects_empty_nickname(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    response = client.patch(
+        "/api/users/me",
+        json={"nickname": ""},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_me_rejects_invalid_profile_image_url(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    response = client.patch(
+        "/api/users/me",
+        json={"profile_image_url": "not-a-url"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 422

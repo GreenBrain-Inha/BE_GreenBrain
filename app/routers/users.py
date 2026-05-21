@@ -13,6 +13,7 @@ from app.schemas.user import (
     TodayTokensSummaryResponse,
     UserMeResponse,
     UserMeUpdateRequest,
+    UserMeUpdateResponse,
     UserOnboardingRequest,
     UserProfileResponse,
     UserProfileUpdateRequest,
@@ -42,20 +43,20 @@ def get_me(
     )
 
 
-@router.patch("/me", response_model=UserMeResponse)
+@router.patch("/me", response_model=UserMeUpdateResponse)
 def update_me(
     payload: UserMeUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> UserMeResponse:
-    if payload.nickname is not None:
+) -> UserMeUpdateResponse:
+    if "nickname" in payload.model_fields_set:
         current_user.nickname = payload.nickname
-    if payload.profile_image_url is not None:
-        current_user.profile_image_url = payload.profile_image_url
+    if "profile_image_url" in payload.model_fields_set:
+        current_user.profile_image_url = str(payload.profile_image_url) if payload.profile_image_url else None
 
     db.commit()
     db.refresh(current_user)
-    return UserMeResponse.model_validate(current_user)
+    return UserMeUpdateResponse.model_validate(current_user)
 
 
 @router.get("/profile", response_model=UserProfileResponse)
