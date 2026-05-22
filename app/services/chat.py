@@ -21,12 +21,10 @@ DEFAULT_CHAT_MODEL = "openai/gpt-4.1-2025-04-14"
 TITLE_MODEL = DEFAULT_CHAT_MODEL
 _ALLOWED_PROVIDERS = frozenset({"openai", "anthropic", "gemini", "google"})
 
-class AiProviderError(Exception):
-    """Raised when the AI provider cannot produce a response."""
-
-
-class UnsupportedChatModel(Exception):
-    """Raised when a requested chat model is not in the server allowlist."""
+from app.common.exceptions.custom import (
+    AiProviderException as AiProviderError,
+    UnsupportedChatModelException as UnsupportedChatModel,
+)
 
 
 def list_models() -> list[str]:
@@ -83,6 +81,7 @@ def generate_ai_response(
         )
         request_latency = time.perf_counter() - timer_start
     except OpenAIError as exc:
+        logger.exception("runyour.ai API error: %s", exc)
         if getattr(exc, "status_code", None) == 404:
             raise UnsupportedChatModel from exc
         raise AiProviderError from exc

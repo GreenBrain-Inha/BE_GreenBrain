@@ -11,8 +11,7 @@ from sqlalchemy.orm import Session
 from app.models import ChatSession
 
 
-class ChatSessionNotFound(Exception):
-    """Raised when a chat session does not belong to the user."""
+from app.common.exceptions.custom import ChatSessionNotFoundException as ChatSessionNotFound
 
 
 def parse_cursor(cursor: str | None) -> datetime | None:

@@ -38,7 +38,7 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     )
 
     assert response.status_code == 200
-    body = response.json()
+    body = response.json()["data"]
     assert body["response"] == "AI 답변"
     assert body["carbon_gco2eq"] == 0.5
     assert body["tokens_remaining"] == 149.5
@@ -93,7 +93,7 @@ def test_send_message_uses_requested_supported_model(
     )
 
     assert response.status_code == 200
-    body = response.json()
+    body = response.json()["data"]
     assert body["model_id"] == "anthropic/claude-sonnet-4-6"
     assert seen_model_id == "anthropic/claude-sonnet-4-6"
 
@@ -122,7 +122,7 @@ def test_send_message_rejects_unsupported_model_before_ai_call(
     )
 
     assert response.status_code == 400
-    assert response.json()["message"] == "Unsupported chat model"
+    assert response.json()["message"] == "지원하지 않는 채팅 모델입니다."
     assert db_session.scalars(select(Message)).all() == []
 
 
@@ -150,7 +150,7 @@ def test_send_message_title_not_set_on_subsequent_messages(
     )
 
     assert response.status_code == 200
-    assert response.json()["session_title"] is None
+    assert response.json()["data"]["session_title"] is None
 
 
 def test_send_message_title_falls_back_to_first_30_chars_when_ai_fails(
@@ -176,7 +176,7 @@ def test_send_message_title_falls_back_to_first_30_chars_when_ai_fails(
     )
 
     assert response.status_code == 200
-    assert response.json()["session_title"] == "가" * 30
+    assert response.json()["data"]["session_title"] == "가" * 30
 
 
 def test_send_message_returns_403_when_tokens_exhausted(
@@ -265,7 +265,7 @@ def test_list_messages_uses_cursor_pagination(
         headers=auth_headers(user),
     )
     assert first_response.status_code == 200
-    first_body = first_response.json()
+    first_body = first_response.json()["data"]
     assert [m["content"] for m in first_body["items"]] == ["message-1", "message-2"]
     assert [m["model_id"] for m in first_body["items"]] == ["openai/gpt-5.2", "openai/gpt-5.2"]
     assert first_body["next_cursor"]
@@ -275,7 +275,7 @@ def test_list_messages_uses_cursor_pagination(
         headers=auth_headers(user),
     )
     assert second_response.status_code == 200
-    second_body = second_response.json()
+    second_body = second_response.json()["data"]
     assert [m["content"] for m in second_body["items"]] == ["message-0"]
     assert second_body["next_cursor"] is None
 
