@@ -25,36 +25,16 @@ STORED_CONTENT_TYPE = "image/webp"
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-class ChallengeNotFound(Exception):
-    """Raised when a challenge does not exist."""
-
-
-class ChallengeNotOwned(Exception):
-    """Raised when a user tries to upload to another user's challenge."""
-
-
-class ChallengeNotActive(Exception):
-    """Raised when a challenge is not active."""
-
-
-class PhotoAlreadyUploaded(Exception):
-    """Raised when a challenge already has a photo."""
-
-
-class FileTooLarge(Exception):
-    """Raised when an uploaded file exceeds the size limit."""
-
-
-class UnsupportedImageType(Exception):
-    """Raised when the uploaded MIME type is unsupported."""
-
-
-class InvalidImage(Exception):
-    """Raised when Pillow cannot parse the uploaded image."""
-
-
-class StorageFailed(Exception):
-    """Raised when storage write fails."""
+from app.common.exceptions.custom import (
+    ChallengeNotActiveException as ChallengeNotActive,
+    ChallengeNotFoundException as ChallengeNotFound,
+    ChallengeNotOwnedException as ChallengeNotOwned,
+    FileTooLargeException as FileTooLarge,
+    InvalidImageException as InvalidImage,
+    PhotoAlreadyUploadedException as PhotoAlreadyUploaded,
+    StorageFailedException as StorageFailed,
+    UnsupportedImageTypeException as UnsupportedImageType,
+)
 
 
 @dataclass(frozen=True)

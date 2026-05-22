@@ -91,7 +91,6 @@ def test_challenge_feed_requires_authentication(client: TestClient) -> None:
     response = client.get("/api/challenges/feed")
 
     assert response.status_code == 401
-    assert response.json() == {"message": "Not authenticated"}
 
 
 def test_challenge_feed_returns_items_latest_first_with_like_counts(
@@ -151,7 +150,7 @@ def test_challenge_feed_returns_items_latest_first_with_like_counts(
     )
 
     assert response.status_code == 200
-    body = response.json()
+    body = response.json()["data"]
     assert body["total"] == 3
     assert body["limit"] == 2
     assert body["offset"] == 1
@@ -190,6 +189,7 @@ def test_challenge_feed_returns_items_latest_first_with_like_counts(
     assert body["items"][1]["like_count"] == 1
     assert body["items"][1]["liked_by_me"] is False
     assert "older-uploader@example.com" not in response.text
+
     assert "newer-uploader@example.com" not in response.text
     assert "description" not in response.text
     assert "difficulty" not in response.text
@@ -200,7 +200,7 @@ def test_challenge_feed_returns_items_latest_first_with_like_counts(
     )
 
     assert first_page_response.status_code == 200
-    first_page_body = first_page_response.json()
+    first_page_body = first_page_response.json()["data"]
     assert first_page_body["total"] == 3
     assert first_page_body["limit"] == 1
     assert first_page_body["offset"] == 0

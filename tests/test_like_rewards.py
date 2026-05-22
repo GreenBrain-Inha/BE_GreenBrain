@@ -82,7 +82,7 @@ def test_like_counts_one_and_two_do_not_grant_reward(
     )
 
     assert first_response.status_code == 200
-    assert first_response.json() == {
+    assert first_response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 1,
@@ -91,10 +91,10 @@ def test_like_counts_one_and_two_do_not_grant_reward(
         "tokens_remaining": None,
     }
     assert second_response.status_code == 200
-    assert second_response.json()["like_count"] == 2
-    assert second_response.json()["reward_given"] is False
-    assert second_response.json()["reward_amount"] == 0.0
-    assert second_response.json()["tokens_remaining"] is None
+    assert second_response.json()["data"]["like_count"] == 2
+    assert second_response.json()["data"]["reward_given"] is False
+    assert second_response.json()["data"]["reward_amount"] == 0.0
+    assert second_response.json()["data"]["tokens_remaining"] is None
     assert db_session.scalars(select(TokenTransaction)).all() == []
 
 
@@ -122,7 +122,7 @@ def test_third_like_grants_reward_to_photo_uploader_and_records_transaction(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 3,
@@ -171,7 +171,7 @@ def test_like_reward_can_recover_tokens_above_daily_base_amount(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 3,
@@ -215,7 +215,7 @@ def test_like_reward_is_granted_when_tokens_are_already_at_daily_base_amount(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 3,
@@ -270,7 +270,7 @@ def test_existing_milestone_transaction_prevents_duplicate_reward(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 3,

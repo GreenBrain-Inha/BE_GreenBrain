@@ -14,16 +14,11 @@ from app.services.daily_reset import get_or_create_today_state
 from app.services.token_account import grant_like_reward
 
 
-class ChallengePhotoNotFound(Exception):
-    """Raised when a challenge photo does not exist."""
-
-
-class CannotLikeOwnPhoto(Exception):
-    """Raised when a user tries to like their own photo."""
-
-
-class PhotoAlreadyLiked(Exception):
-    """Raised when a user already liked a photo."""
+from app.common.exceptions.custom import (
+    CannotLikeOwnPhotoException as CannotLikeOwnPhoto,
+    ChallengePhotoNotFoundException as ChallengePhotoNotFound,
+    PhotoAlreadyLikedException as PhotoAlreadyLiked,
+)
 
 
 @dataclass(frozen=True)

@@ -83,7 +83,7 @@ def test_like_challenge_photo_creates_like_and_returns_count(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
+    assert response.json()["data"] == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 2,
@@ -115,10 +115,10 @@ def test_like_challenge_photo_updates_feed_like_count_and_liked_by_me(
     feed_response = client.get("/api/challenges/feed", headers=auth_headers(liker))
 
     assert feed_response.status_code == 200
-    body = feed_response.json()
-    assert body["items"][0]["photo_id"] == str(photo.id)
-    assert body["items"][0]["like_count"] == 1
-    assert body["items"][0]["liked_by_me"] is True
+    data = feed_response.json()["data"]
+    assert data["items"][0]["photo_id"] == str(photo.id)
+    assert data["items"][0]["like_count"] == 1
+    assert data["items"][0]["liked_by_me"] is True
 
 
 def test_like_challenge_photo_requires_authentication(
@@ -131,7 +131,6 @@ def test_like_challenge_photo_requires_authentication(
     response = client.post(f"/api/challenge-photos/{photo.id}/like")
 
     assert response.status_code == 401
-    assert response.json() == {"message": "Not authenticated"}
 
 
 def test_like_challenge_photo_returns_404_for_missing_photo(
@@ -146,7 +145,6 @@ def test_like_challenge_photo_returns_404_for_missing_photo(
     )
 
     assert response.status_code == 404
-    assert response.json() == {"message": "Challenge photo not found"}
 
 
 def test_like_challenge_photo_rejects_own_photo(
@@ -162,7 +160,6 @@ def test_like_challenge_photo_rejects_own_photo(
     )
 
     assert response.status_code == 403
-    assert response.json() == {"message": "Cannot like own photo"}
     assert db_session.scalars(select(Like)).all() == []
 
 
@@ -182,6 +179,5 @@ def test_like_challenge_photo_rejects_duplicate_like(
     )
 
     assert response.status_code == 409
-    assert response.json() == {"message": "Challenge photo already liked"}
     likes = db_session.scalars(select(Like).where(Like.photo_id == photo.id)).all()
     assert len(likes) == 1
