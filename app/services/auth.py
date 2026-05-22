@@ -11,7 +11,7 @@ from jose import jwt, JWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends
 
 from app.db import get_db
 from app.core.security import (
@@ -31,20 +31,12 @@ PASSWORD_POLICY_MESSAGE = (
 )
 
 
-class EmailAlreadyExists(Exception):
-    """Raised when a normalized email is already registered."""
-
-
-class PasswordPolicyViolation(Exception):
-    """Raised when a password does not satisfy the signup policy."""
-
-
-class InvalidCredentials(Exception):
-    """Raised when login credentials cannot authenticate a user."""
-
-
-class LoginTemporarilyLocked(Exception):
-    """Raised when an email and IP pair is temporarily locked."""
+from app.common.exceptions.custom import (
+    EmailAlreadyExistsException as EmailAlreadyExists,
+    InvalidCredentialsException as InvalidCredentials,
+    LoginTemporarilyLockedException as LoginTemporarilyLocked,
+    PasswordPolicyViolationException as PasswordPolicyViolation,
+)
 
 
 @dataclass
@@ -163,24 +155,22 @@ def get_current_user(
     db: Session = Depends(get_db),
     access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE_NAME),
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"message": "Not authenticated"},
-    )
+    from app.common.exceptions.custom import NotAuthenticatedException
+
     if access_token is None:
-        raise credentials_exception
+        raise NotAuthenticatedException()
     try:
         payload = jwt.decode(access_token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         user_id_str: str | None = payload.get("sub")
         if user_id_str is None:
-            raise credentials_exception
+            raise NotAuthenticatedException()
         user_id = UUID(user_id_str)
     except (JWTError, ValueError):
-        raise credentials_exception
+        raise NotAuthenticatedException()
 
     user = db.get(User, user_id)
     if user is None:
-        raise credentials_exception
+        raise NotAuthenticatedException()
     return user
 
 

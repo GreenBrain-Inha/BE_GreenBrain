@@ -23,14 +23,9 @@ class SignupRequest(BaseModel):
         return value
 
 
-class AuthUserResponse(BaseModel):
+class SignupResponse(BaseModel):
     id: UUID
     email: str
-
-
-class SignupResponse(BaseModel):
-    message: str
-    user: AuthUserResponse
 
 
 class LoginRequest(BaseModel):
@@ -46,9 +41,4 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    message: str
     onboarding_completed: bool
-
-
-class LogoutResponse(BaseModel):
-    message: str

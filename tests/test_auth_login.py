@@ -19,11 +19,15 @@ from app.services import auth as auth_service
 
 
 INVALID_CREDENTIALS_BODY = {
-    "message": "Invalid email or password",
+    "success": False,
+    "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+    "data": None,
 }
 
 LOCKED_BODY = {
-    "message": "Too many failed login attempts. Try again later.",
+    "success": False,
+    "message": "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+    "data": None,
 }
 
 
@@ -100,10 +104,10 @@ def test_login_sets_local_httponly_jwt_cookie(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Login successful",
-        "onboarding_completed": False,
-    }
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "로그인되었습니다."
+    assert body["data"]["onboarding_completed"] is False
 
     set_cookie = response.headers["set-cookie"]
     assert "access_token=" in set_cookie
@@ -140,10 +144,9 @@ def test_login_returns_onboarding_completed_for_profiled_user(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Login successful",
-        "onboarding_completed": True,
-    }
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["onboarding_completed"] is True
     assert "access_token=" in response.headers["set-cookie"]
 
 
@@ -293,7 +296,10 @@ def test_logout_expires_access_token_cookie(client: TestClient) -> None:
     response = client.post("/api/auth/logout")
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Logout successful"}
+    body = response.json()
+    assert body["success"] is True
+    assert body["message"] == "로그아웃되었습니다."
+    assert body["data"] is None
 
     set_cookie = response.headers["set-cookie"]
     assert "access_token=" in set_cookie

@@ -19,8 +19,7 @@ from app.services.auth import EmailAlreadyExists, PasswordPolicyViolation
 
 
 PASSWORD_POLICY_MESSAGE = (
-    "Password must be at least 8 characters, include uppercase, lowercase, "
-    "and number, and be at most 72 bytes"
+    "비밀번호는 8자 이상, 대문자·소문자·숫자를 포함하고 72바이트 이하여야 합니다."
 )
 
 
@@ -68,13 +67,13 @@ def test_signup_creates_user_with_normalized_email_and_bcrypt_hash(
     assert response.status_code == 201
     assert "set-cookie" not in response.headers
     body = response.json()
-    assert body["message"] == "Signup successful"
-    assert body["user"]["email"] == "user@example.com"
-    assert body["user"]["id"]
-    assert "password" not in body
-    assert "password_hash" not in body
-    assert "password" not in body["user"]
-    assert "password_hash" not in body["user"]
+    assert body["success"] is True
+    assert body["message"] == "회원가입이 완료되었습니다."
+    data = body["data"]
+    assert data["email"] == "user@example.com"
+    assert data["id"]
+    assert "password" not in data
+    assert "password_hash" not in data
 
     user = get_user_by_email(db_session, "user@example.com")
     assert user is not None
@@ -97,9 +96,10 @@ def test_signup_rejects_duplicate_email_after_normalization(
     )
 
     assert duplicate_response.status_code == 409
-    assert duplicate_response.json() == {
-        "message": "Email already exists",
-    }
+    err = duplicate_response.json()
+    assert err["success"] is False
+    assert err["message"] == "이미 존재하는 이메일입니다."
+    assert err["data"] is None
 
 
 @pytest.mark.parametrize(
@@ -123,9 +123,10 @@ def test_signup_rejects_password_policy_violations(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "message": PASSWORD_POLICY_MESSAGE,
-    }
+    err = response.json()
+    assert err["success"] is False
+    assert err["message"] == PASSWORD_POLICY_MESSAGE
+    assert err["data"] is None
     assert db_session.scalar(sa.select(sa.func.count()).select_from(User)) == 0
 
 
