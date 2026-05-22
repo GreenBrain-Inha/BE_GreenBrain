@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from typing import Annotated, Union
+
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -12,21 +14,27 @@ from app.schemas.common import Errors, error_response
 from app.schemas.user import (
     TodayTokensSummaryResponse,
     UserMeResponse,
-    UserMeUpdateRequest,
+    UserMeUpdateResponse,
     UserOnboardingRequest,
     UserProfileResponse,
     UserProfileUpdateRequest,
 )
 from app.services.auth import get_current_user
 from app.services.daily_reset import get_or_create_today_state
+from app.services import user_profile
+from app.services.storage import FileStorage, get_file_storage
 
 router = APIRouter()
+
+DbSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+Storage = Annotated[FileStorage, Depends(get_file_storage)]
 
 
 @router.get("/me", response_model=UserMeResponse)
 def get_me(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: CurrentUser,
+    db: DbSession,
 ) -> UserMeResponse:
     state = get_or_create_today_state(db, current_user.id)
     db.commit()
@@ -42,25 +50,42 @@ def get_me(
     )
 
 
-@router.patch("/me", response_model=UserMeResponse)
-def update_me(
-    payload: UserMeUpdateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> UserMeResponse:
-    if payload.nickname is not None:
-        current_user.nickname = payload.nickname
-    if payload.profile_image_url is not None:
-        current_user.profile_image_url = payload.profile_image_url
+@router.patch("/me", response_model=UserMeUpdateResponse)
+async def update_me(
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+    storage: Storage,
+    nickname: Annotated[str | None, Form(min_length=1)] = None,
+    profile_image: Annotated[UploadFile | None, File()] = None,
+) -> Union[UserMeUpdateResponse, JSONResponse]:
+    form = await request.form()
+    if form.get("nickname") == "":
+        return JSONResponse(status_code=422, content={"message": "Nickname must not be empty"})
 
-    db.commit()
-    db.refresh(current_user)
-    return UserMeResponse.model_validate(current_user)
+    try:
+        updated_user = user_profile.update_user_profile(
+            db,
+            user=current_user,
+            nickname=nickname,
+            profile_image=profile_image,
+            storage=storage,
+        )
+    except user_profile.FileTooLarge:
+        return error_response(Errors.FILE_TOO_LARGE)
+    except user_profile.UnsupportedImageType:
+        return error_response(Errors.UNSUPPORTED_IMAGE_TYPE)
+    except user_profile.InvalidImage:
+        return error_response(Errors.INVALID_IMAGE)
+    except user_profile.StorageFailed:
+        return error_response(Errors.STORAGE_WRITE_FAILED)
+
+    return UserMeUpdateResponse.model_validate(updated_user)
 
 
 @router.get("/profile", response_model=UserProfileResponse)
 def get_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ) -> UserProfileResponse | JSONResponse:
     if current_user.profile is None:
         return error_response(Errors.NOT_FOUND)
@@ -70,8 +95,8 @@ def get_profile(
 @router.patch("/profile", response_model=UserProfileResponse)
 def update_profile(
     payload: UserProfileUpdateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ) -> UserProfileResponse | JSONResponse:
     if current_user.profile is None:
         return error_response(Errors.NOT_FOUND)
@@ -92,8 +117,8 @@ def update_profile(
 @router.post("/onboarding", status_code=status.HTTP_201_CREATED, response_model=UserProfileResponse)
 def onboarding(
     payload: UserOnboardingRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbSession,
+    current_user: CurrentUser,
 ) -> UserProfileResponse:
     if current_user.profile is None:
         profile = UserProfile(

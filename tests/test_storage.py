@@ -25,7 +25,7 @@ def test_get_file_storage_selects_supabase(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("STORAGE_BACKEND", "supabase")
     monkeypatch.setenv("SUPABASE_URL", "https://project-ref.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
-    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "challenge-photos")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "greenbrain-uploads")
     monkeypatch.setenv(
         "SUPABASE_STORAGE_PUBLIC_BASE_URL",
         "https://project-ref.supabase.co/storage/v1/object/public",
@@ -44,7 +44,7 @@ def test_get_file_storage_supabase_ignores_invalid_ssl_cert_env(
     monkeypatch.setenv("STORAGE_BACKEND", "supabase")
     monkeypatch.setenv("SUPABASE_URL", "https://project-ref.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-role")
-    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "challenge-photos")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "greenbrain-uploads")
     monkeypatch.setenv(
         "SUPABASE_STORAGE_PUBLIC_BASE_URL",
         "https://project-ref.supabase.co/storage/v1/object/public",
@@ -79,7 +79,7 @@ def test_supabase_storage_get_url_includes_public_base_bucket_and_key() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
-        bucket="challenge-photos",
+        bucket="greenbrain-uploads",
         public_base_url="https://project-ref.supabase.co/storage/v1/object/public/",
         client=httpx.Client(
             transport=httpx.MockTransport(lambda request: httpx.Response(200))
@@ -88,7 +88,7 @@ def test_supabase_storage_get_url_includes_public_base_bucket_and_key() -> None:
 
     assert storage.get_url("uuid.webp") == (
         "https://project-ref.supabase.co/storage/v1/object/public/"
-        "challenge-photos/uuid.webp"
+        "greenbrain-uploads/uuid.webp"
     )
 
 
@@ -102,7 +102,7 @@ def test_supabase_storage_put_uploads_without_network() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
-        bucket="challenge-photos",
+        bucket="greenbrain-uploads",
         public_base_url="https://project-ref.supabase.co/storage/v1/object/public",
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
@@ -115,7 +115,7 @@ def test_supabase_storage_put_uploads_without_network() -> None:
     assert request.method == "POST"
     assert str(request.url) == (
         "https://project-ref.supabase.co/storage/v1/object/"
-        "challenge-photos/uuid.webp"
+        "greenbrain-uploads/uuid.webp"
     )
     assert request.headers["apikey"] == "service-role"
     assert request.headers["authorization"] == "Bearer service-role"
@@ -128,7 +128,7 @@ def test_supabase_storage_put_rejects_duplicate_prefix_key() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
-        bucket="challenge-photos",
+        bucket="greenbrain-uploads",
         public_base_url="https://project-ref.supabase.co/storage/v1/object/public",
         client=httpx.Client(
             transport=httpx.MockTransport(lambda request: httpx.Response(200))
@@ -144,7 +144,7 @@ def test_supabase_storage_put_raises_storage_write_error_on_failure() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
-        bucket="challenge-photos",
+        bucket="greenbrain-uploads",
         public_base_url="https://project-ref.supabase.co/storage/v1/object/public",
         client=httpx.Client(
             transport=httpx.MockTransport(lambda request: httpx.Response(500))
@@ -159,7 +159,7 @@ def test_supabase_storage_delete_ignores_failure() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
-        bucket="challenge-photos",
+        bucket="greenbrain-uploads",
         public_base_url="https://project-ref.supabase.co/storage/v1/object/public",
         client=httpx.Client(
             transport=httpx.MockTransport(lambda request: httpx.Response(500))

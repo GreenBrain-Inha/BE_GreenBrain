@@ -90,7 +90,7 @@ def upload_challenge_photo(
 
     image_bytes = _validate_and_process_image(upload)
     photo_id = uuid4()
-    storage_key = f"{photo_id}.webp"
+    storage_key = f"challenge-photos/{photo_id}.webp"
 
     try:
         stored_key = storage.put(storage_key, image_bytes, STORED_CONTENT_TYPE)

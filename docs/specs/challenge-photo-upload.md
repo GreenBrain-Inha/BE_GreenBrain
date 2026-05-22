@@ -164,8 +164,8 @@ API는 JWT 인증된 사용자만 호출할 수 있다.
 
 - `STORAGE_BACKEND=local` keeps using `LocalFileStorage`.
 - `STORAGE_BACKEND=supabase` uses `SupabaseStorage`.
-- Supabase uploads use bucket `challenge-photos`.
-- Stored object keys are `{photo_id}.webp`; the bucket name is not duplicated in the object key.
+- Supabase uploads use bucket `greenbrain-uploads`.
+- Stored challenge photo object keys are `challenge-photos/{photo_id}.webp`; the bucket name is not duplicated in the object key.
 - Supabase public URLs are built as `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}`.
 - `SUPABASE_STORAGE_PUBLIC_BASE_URL` must not include the bucket name. Example: `https://<project-ref>.supabase.co/storage/v1/object/public`.
 - The API response shape does not change; clients continue to read `photo.file_url`.
