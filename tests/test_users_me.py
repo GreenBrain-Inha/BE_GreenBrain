@@ -102,13 +102,13 @@ def test_get_me_without_onboarding(client: TestClient, db_session: Session) -> N
     response = client.get("/api/users/me", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert set(body) == EXPECTED_FIELDS
-    assert body["email"] == user.email
-    assert body["onboarding_completed"] is False
-    assert body["profile"] is None
-    assert body["today_tokens"]["date"] == today_kst().isoformat()
-    assert body["today_tokens"]["tokens_remaining"] == 150.0
+    data = response.json()["data"]
+    assert set(data) == EXPECTED_FIELDS
+    assert data["email"] == user.email
+    assert data["onboarding_completed"] is False
+    assert data["profile"] is None
+    assert data["today_tokens"]["date"] == today_kst().isoformat()
+    assert data["today_tokens"]["tokens_remaining"] == 150.0
 
 
 def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None:
@@ -125,14 +125,14 @@ def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None
     response = client.get("/api/users/me", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["onboarding_completed"] is True
-    assert body["profile"] == {
+    data = response.json()["data"]
+    assert data["onboarding_completed"] is True
+    assert data["profile"] == {
         "transport_mode": "transit",
         "diet_type": "omnivore",
         "housing_type": "apartment",
     }
-    assert body["today_tokens"]["tokens_remaining"] == 150.0
+    assert data["today_tokens"]["tokens_remaining"] == 150.0
 
 
 def test_update_me_uploads_profile_image(
@@ -149,17 +149,17 @@ def test_update_me_uploads_profile_image(
     )
 
     assert response.status_code == 200
-    body = response.json()
-    assert set(body) == UPDATE_RESPONSE_FIELDS
-    assert body["id"] == str(user.id)
-    assert body["email"] == user.email
-    assert body["profile_image_url"].startswith("/files/profile-images/")
-    assert body["profile_image_url"].endswith(".webp")
-    assert body["updated_at"] is not None
+    data = response.json()["data"]
+    assert set(data) == UPDATE_RESPONSE_FIELDS
+    assert data["id"] == str(user.id)
+    assert data["email"] == user.email
+    assert data["profile_image_url"].startswith("/files/profile-images/")
+    assert data["profile_image_url"].endswith(".webp")
+    assert data["updated_at"] is not None
     assert len(storage.files) == 1
 
     db_session.refresh(user)
-    assert user.profile_image_url == body["profile_image_url"]
+    assert user.profile_image_url == data["profile_image_url"]
 
 
 def test_update_me_updates_nickname(
@@ -175,11 +175,11 @@ def test_update_me_updates_nickname(
     )
 
     assert response.status_code == 200
-    body = response.json()
-    assert set(body) == UPDATE_RESPONSE_FIELDS
-    assert body["nickname"] == "Green User"
-    assert body["profile_image_url"] is None
-    assert body["updated_at"] is not None
+    data = response.json()["data"]
+    assert set(data) == UPDATE_RESPONSE_FIELDS
+    assert data["nickname"] == "Green User"
+    assert data["profile_image_url"] is None
+    assert data["updated_at"] is not None
 
     db_session.refresh(user)
     assert user.nickname == "Green User"

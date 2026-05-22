@@ -9,13 +9,10 @@ from urllib.parse import quote
 
 import httpx
 
+from app.common.exceptions.custom import StorageFailedException as StorageWriteError
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-
-class StorageWriteError(Exception):
-    """Raised when a file cannot be written to storage."""
 
 
 class FileStorage(Protocol):

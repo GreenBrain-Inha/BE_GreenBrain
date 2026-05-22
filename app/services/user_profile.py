@@ -19,20 +19,12 @@ STORED_CONTENT_TYPE = "image/webp"
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-class FileTooLarge(Exception):
-    """Raised when an uploaded file exceeds the size limit."""
-
-
-class UnsupportedImageType(Exception):
-    """Raised when the uploaded MIME type is unsupported."""
-
-
-class InvalidImage(Exception):
-    """Raised when Pillow cannot parse the uploaded image."""
-
-
-class StorageFailed(Exception):
-    """Raised when storage write fails."""
+from app.common.exceptions.custom import (
+    FileTooLargeException as FileTooLarge,
+    InvalidImageException as InvalidImage,
+    StorageFailedException as StorageFailed,
+    UnsupportedImageTypeException as UnsupportedImageType,
+)
 
 
 def update_user_profile(

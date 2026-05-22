@@ -13,8 +13,7 @@ UPLOAD_REWARD_AMOUNT = 20.0
 LIKE_REWARD_AMOUNT = 20.0
 
 
-class TokenExhausted(Exception):
-    """Raised when chat usage is attempted without remaining tokens."""
+from app.common.exceptions.custom import TokenExhaustedException as TokenExhausted
 
 
 def ensure_chat_tokens_available(state: DailyTokenState) -> None:

@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.common.response import CommonResponse
 from app.db import get_db
 from app.models import User
 from app.schemas.token import TokenStateResponse
@@ -20,12 +21,15 @@ DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@router.get("/today", response_model=TokenStateResponse)
+@router.get("/today", response_model=CommonResponse[TokenStateResponse])
 def get_today_token_state(
     current_user: CurrentUser,
     db: DbSession,
-) -> TokenStateResponse:
+) -> CommonResponse[TokenStateResponse]:
     state = get_or_create_today_state(db, current_user.id)
     db.commit()
     db.refresh(state)
-    return TokenStateResponse.model_validate(state)
+    return CommonResponse.success_response(
+        message="조회 성공",
+        data=TokenStateResponse.model_validate(state),
+    )
