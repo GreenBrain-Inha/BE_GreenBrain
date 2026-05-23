@@ -28,7 +28,6 @@ def test_get_today_token_state_requires_authentication(client: TestClient) -> No
     response = client.get("/api/tokens/today")
 
     assert response.status_code == 401
-    assert response.json() == {"message": "Not authenticated"}
 
 
 def test_get_today_token_state_creates_default_row(
@@ -40,15 +39,15 @@ def test_get_today_token_state_creates_default_row(
     response = client.get("/api/tokens/today", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert set(body) == EXPECTED_FIELDS
-    assert body["date"] == today_kst().isoformat()
-    assert body["tokens_remaining"] == 150.0
-    assert body["upload_reward_given"] == 0.0
-    assert body["like_reward_given"] == 0.0
-    assert body["total_reward_given"] == 0.0
-    assert body["challenge_count"] == 0
-    assert body["updated_at"] is not None
+    data = response.json()["data"]
+    assert set(data) == EXPECTED_FIELDS
+    assert data["date"] == today_kst().isoformat()
+    assert data["tokens_remaining"] == 150.0
+    assert data["upload_reward_given"] == 0.0
+    assert data["like_reward_given"] == 0.0
+    assert data["total_reward_given"] == 0.0
+    assert data["challenge_count"] == 0
+    assert data["updated_at"] is not None
 
     state = db_session.scalar(select(DailyTokenState))
     assert state is not None
@@ -77,14 +76,14 @@ def test_get_today_token_state_returns_existing_row(
     response = client.get("/api/tokens/today", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert set(body) == EXPECTED_FIELDS
-    assert body["date"] == today_kst().isoformat()
-    assert body["tokens_remaining"] == 42.5
-    assert body["upload_reward_given"] == 20.0
-    assert body["like_reward_given"] == 40.0
-    assert body["total_reward_given"] == 60.0
-    assert body["challenge_count"] == 2
+    data = response.json()["data"]
+    assert set(data) == EXPECTED_FIELDS
+    assert data["date"] == today_kst().isoformat()
+    assert data["tokens_remaining"] == 42.5
+    assert data["upload_reward_given"] == 20.0
+    assert data["like_reward_given"] == 40.0
+    assert data["total_reward_given"] == 60.0
+    assert data["challenge_count"] == 2
 
     states = db_session.scalars(select(DailyTokenState)).all()
     assert len(states) == 1

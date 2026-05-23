@@ -35,11 +35,16 @@
 │   │   ├── chat.py              # ChatSession, Message
 │   │   ├── token.py             # DailyTokenState, TokenTransaction
 │   │   └── challenge.py         # Challenge, ChallengePhoto, Like
+│   ├── common/                  # 공통 응답 및 예외 처리 인프라
+│   │   ├── response.py          # CommonResponse[T] 제네릭 응답 모델
+│   │   └── exceptions/          # AppException 계층 및 글로벌 핸들러
+│   │       ├── base.py          # AppException 베이스 클래스
+│   │       ├── custom.py        # NotFoundException, UnauthorizedException 등 구체 예외
+│   │       └── handlers.py      # AppException, RequestValidationError, HTTPException 핸들러
 │   ├── schemas/                 # Pydantic API 요청/응답 DTO
 │   │   ├── auth.py              # 회원가입/로그인 요청·응답
 │   │   ├── chat.py              # 채팅 메시지 요청·응답
-│   │   ├── chat_session.py      # 채팅 세션 요청·응답
-│   │   └── common.py            # ApiError, Errors, error_response
+│   │   └── chat_session.py      # 채팅 세션 요청·응답
 │   └── db/                      # DB 엔진 생성, 세션 관리
 ├── alembic/                     # Alembic 마이그레이션
 │   ├── env.py

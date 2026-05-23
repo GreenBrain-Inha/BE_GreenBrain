@@ -123,7 +123,7 @@ def test_current_returns_null_when_no_open_challenge(
     response = client.get("/api/challenges/current", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert response.json() == {"challenge": None}
+    assert response.json()["data"] == {"challenge": None}
 
 
 @pytest.mark.parametrize("status", ["pending_acceptance", "active"])
@@ -138,9 +138,9 @@ def test_current_returns_open_challenge(
     response = client.get("/api/challenges/current", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["challenge"]["id"] == str(challenge.id)
-    assert body["challenge"]["status"] == status
+    data = response.json()["data"]
+    assert data["challenge"]["id"] == str(challenge.id)
+    assert data["challenge"]["status"] == status
 
 
 def test_current_excludes_completed_challenge(
@@ -153,7 +153,7 @@ def test_current_excludes_completed_challenge(
     response = client.get("/api/challenges/current", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert response.json() == {"challenge": None}
+    assert response.json()["data"] == {"challenge": None}
 
 
 def test_generate_creates_pending_challenge_when_tokens_exhausted(
@@ -174,10 +174,10 @@ def test_generate_creates_pending_challenge_when_tokens_exhausted(
     response = client.post("/api/challenges/generate", headers=auth_headers(user))
 
     assert response.status_code == 201
-    body = response.json()
-    assert body["created"] is True
-    assert body["challenge"]["status"] == "pending_acceptance"
-    assert body["challenge"]["category"] == "transport"
+    data = response.json()["data"]
+    assert data["created"] is True
+    assert data["challenge"]["status"] == "pending_acceptance"
+    assert data["challenge"]["category"] == "transport"
 
     challenge = db_session.scalar(select(Challenge))
     assert challenge is not None
@@ -212,9 +212,9 @@ def test_generate_returns_existing_open_challenge_without_creating_new_row(
     response = client.post("/api/challenges/generate", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["created"] is False
-    assert body["challenge"]["id"] == str(existing.id)
+    data = response.json()["data"]
+    assert data["created"] is False
+    assert data["challenge"]["id"] == str(existing.id)
     assert len(db_session.scalars(select(Challenge)).all()) == 1
 
 
@@ -244,7 +244,7 @@ def test_accept_changes_pending_challenge_to_active(
     )
 
     assert response.status_code == 200
-    assert response.json()["challenge"]["status"] == "active"
+    assert response.json()["data"]["challenge"]["status"] == "active"
     db_session.refresh(challenge)
     assert challenge.status == "active"
 

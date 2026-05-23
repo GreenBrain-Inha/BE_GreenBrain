@@ -17,24 +17,13 @@ OPEN_CHALLENGE_STATUSES = ("pending_acceptance", "active")
 DAILY_CHALLENGE_LIMIT = 3
 
 
-class TokenNotExhausted(Exception):
-    """Raised when a challenge is requested before tokens are exhausted."""
-
-
-class DailyChallengeLimitReached(Exception):
-    """Raised when the user already generated the maximum daily challenges."""
-
-
-class ChallengeNotFound(Exception):
-    """Raised when an owned challenge cannot be found."""
-
-
-class ChallengeNotPending(Exception):
-    """Raised when a challenge cannot be accepted from its current status."""
-
-
-class ChallengeGenerationFailed(Exception):
-    """Raised when challenge candidate generation fails."""
+from app.common.exceptions.custom import (
+    ChallengeGenerationFailedException as ChallengeGenerationFailed,
+    ChallengeNotFoundException as ChallengeNotFound,
+    ChallengeNotPendingException as ChallengeNotPending,
+    DailyChallengeLimitReachedException as DailyChallengeLimitReached,
+    TokenNotExhaustedException as TokenNotExhausted,
+)
 
 
 @dataclass(frozen=True)

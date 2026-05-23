@@ -17,7 +17,7 @@ def test_create_session_returns_201_with_null_title(
     response = client.post("/api/chat/sessions", headers=auth_headers(user))
 
     assert response.status_code == 201
-    body = response.json()
+    body = response.json()["data"]
     assert body["title"] is None
     assert UUID(body["id"])
 
@@ -33,7 +33,7 @@ def test_list_sessions_returns_own_sessions_only(
     response = client.get("/api/chat/sessions", headers=auth_headers(user))
 
     assert response.status_code == 200
-    body = response.json()
+    body = response.json()["data"]
     assert len(body["items"]) == 1
     assert body["next_cursor"] is None
 
@@ -49,7 +49,7 @@ def test_update_session_title(client: TestClient, db_session: Session) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["title"] == "새 제목"
+    assert response.json()["data"]["title"] == "새 제목"
 
 
 def test_update_session_returns_404_for_other_users_session(
@@ -83,7 +83,8 @@ def test_delete_session_removes_session_and_messages(
 
     response = client.delete(f"/api/chat/sessions/{session.id}", headers=auth_headers(user))
 
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert response.json()["success"] is True
     assert db_session.get(ChatSession, session.id) is None
     assert db_session.scalars(select(Message)).all() == []
 

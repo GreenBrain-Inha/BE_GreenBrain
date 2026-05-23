@@ -212,12 +212,12 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     )
 
     assert response.status_code == 201
-    body = response.json()
-    assert body["photo"]["challenge_id"] == str(challenge.id)
-    assert body["photo"]["file_url"].startswith("/files/challenge-photos/")
-    assert body["challenge"]["status"] == "completed"
-    assert body["challenge"]["completed_at"] is not None
-    assert body["reward"] == {
+    data = response.json()["data"]
+    assert data["photo"]["challenge_id"] == str(challenge.id)
+    assert data["photo"]["file_url"].startswith("/files/challenge-photos/")
+    assert data["challenge"]["status"] == "completed"
+    assert data["challenge"]["completed_at"] is not None
+    assert data["reward"] == {
         "type": "upload_reward",
         "reward_amount": 20.0,
         "tokens_remaining": 120.0,
@@ -257,7 +257,7 @@ def test_photo_upload_caps_reward_at_daily_max(
     )
 
     assert response.status_code == 201
-    assert response.json()["reward"] == {
+    assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
         "reward_amount": 10.0,
         "tokens_remaining": 150.0,
@@ -279,7 +279,7 @@ def test_photo_upload_succeeds_when_reward_is_zero(
     )
 
     assert response.status_code == 201
-    assert response.json()["reward"] == {
+    assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
         "reward_amount": 0.0,
         "tokens_remaining": 150.0,
