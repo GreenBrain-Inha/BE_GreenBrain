@@ -17,7 +17,7 @@ from app.core.security import ACCESS_TOKEN_COOKIE_NAME
 from app.db import Base, get_db
 from app.main import app
 from app.models import Challenge, ChallengePhoto, DailyTokenState, TokenTransaction, User
-from app.services.auth import create_access_token
+from app.services.auth_service import create_access_token
 from app.services.daily_reset import today_kst
 from app.services.storage import StorageWriteError, get_file_storage
 

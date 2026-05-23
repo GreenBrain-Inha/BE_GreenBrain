@@ -14,8 +14,11 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 from app.models import User
-from app.services import auth as auth_service
-from app.services.auth import EmailAlreadyExists, PasswordPolicyViolation
+from app.common.exceptions.custom import (
+    EmailAlreadyExistsException as EmailAlreadyExists,
+    PasswordPolicyViolationException as PasswordPolicyViolation,
+)
+from app.services.auth_service import AuthService
 
 
 PASSWORD_POLICY_MESSAGE = (
@@ -150,10 +153,10 @@ def test_password_over_72_bytes_is_rejected_before_hashing(
     def fail_hash(_: str) -> str:
         raise AssertionError("hash_password should not be called")
 
-    monkeypatch.setattr(auth_service, "hash_password", fail_hash)
+    monkeypatch.setattr(AuthService, "_hash_password", staticmethod(fail_hash))
 
     with pytest.raises(PasswordPolicyViolation):
-        auth_service.signup_user(db_session, email="user@example.com", password="A1" + "a" * 71)
+        AuthService(db_session).signup(email="user@example.com", password="A1" + "a" * 71)
 
 
 def test_signup_maps_unique_constraint_race_to_email_exists(
@@ -166,4 +169,4 @@ def test_signup_maps_unique_constraint_race_to_email_exists(
     monkeypatch.setattr(db_session, "commit", raise_integrity_error)
 
     with pytest.raises(EmailAlreadyExists):
-        auth_service.signup_user(db_session, email="race@example.com", password="Password123")
+        AuthService(db_session).signup(email="race@example.com", password="Password123")

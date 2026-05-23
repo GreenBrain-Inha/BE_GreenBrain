@@ -15,7 +15,11 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 from app.models import User, UserProfile
-from app.services import auth as auth_service
+from app.common.exceptions.custom import (
+    InvalidCredentialsException as InvalidCredentials,
+    LoginTemporarilyLockedException as LoginTemporarilyLocked,
+)
+from app.services.auth_service import AuthService
 
 
 INVALID_CREDENTIALS_BODY = {
@@ -35,9 +39,9 @@ LOCKED_BODY = {
 def reset_login_attempts(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
-    auth_service.reset_login_attempts()
+    AuthService._login_attempts.clear()
     yield
-    auth_service.reset_login_attempts()
+    AuthService._login_attempts.clear()
 
 
 @pytest.fixture
@@ -257,34 +261,31 @@ def test_successful_login_resets_failure_counter(
 
 def test_lockout_is_scoped_by_email_and_ip(db_session: Session) -> None:
     create_user(db_session, email="user@example.com", password="Password123")
+    service = AuthService(db_session)
 
     for _ in range(5):
-        with pytest.raises(auth_service.InvalidCredentials):
-            auth_service.login_user(
-                db_session,
+        with pytest.raises(InvalidCredentials):
+            service.login(
                 email="user@example.com",
                 password="WrongPassword123",
                 client_ip="203.0.113.10",
             )
 
-    with pytest.raises(auth_service.LoginTemporarilyLocked):
-        auth_service.login_user(
-            db_session,
+    with pytest.raises(LoginTemporarilyLocked):
+        service.login(
             email="user@example.com",
             password="WrongPassword123",
             client_ip="203.0.113.10",
         )
 
-    with pytest.raises(auth_service.LoginTemporarilyLocked):
-        auth_service.login_user(
-            db_session,
+    with pytest.raises(LoginTemporarilyLocked):
+        service.login(
             email="user@example.com",
             password="Password123",
             client_ip="203.0.113.10",
         )
 
-    token = auth_service.login_user(
-        db_session,
+    token, _ = service.login(
         email="user@example.com",
         password="Password123",
         client_ip="203.0.113.11",
