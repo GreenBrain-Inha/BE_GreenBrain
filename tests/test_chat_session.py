@@ -83,7 +83,8 @@ def test_delete_session_removes_session_and_messages(
 
     response = client.delete(f"/api/chat/sessions/{session.id}", headers=auth_headers(user))
 
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert response.json()["success"] is True
     assert db_session.get(ChatSession, session.id) is None
     assert db_session.scalars(select(Message)).all() == []
 

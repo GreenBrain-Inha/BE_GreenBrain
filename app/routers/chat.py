@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, Query, Response, status
+from fastapi import APIRouter, Cookie, Depends, Query, status
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -141,18 +141,14 @@ def update_chat_session(
     )
 
 
-@router.delete(
-    "/sessions/{session_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
-)
+@router.delete("/sessions/{session_id}", response_model=CommonResponse[None])
 def delete_chat_session(
     session_id: UUID,
     current_user: CurrentUser,
     db: DbSession,
-) -> Response:
+) -> CommonResponse[None]:
     chat_session_service.delete_session(db, user_id=current_user.id, session_id=session_id)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return CommonResponse.success_response("세션이 삭제되었습니다.")
 
 
 @router.post("/sessions/{session_id}/messages", response_model=CommonResponse[ChatResponse])
