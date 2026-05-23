@@ -127,11 +127,10 @@ def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["onboarding_completed"] is True
-    assert data["profile"] == {
-        "transport_mode": "transit",
-        "diet_type": "omnivore",
-        "housing_type": "apartment",
-    }
+    assert data["profile"]["transport_mode"] == "transit"
+    assert data["profile"]["diet_type"] == "omnivore"
+    assert data["profile"]["housing_type"] == "apartment"
+    assert data["profile"]["updated_at"] is not None
     assert data["today_tokens"]["tokens_remaining"] == 150.0
 
 

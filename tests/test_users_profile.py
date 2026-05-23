@@ -37,11 +37,11 @@ def test_get_profile_returns_current_profile(
     response = client.get("/api/users/profile", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert response.json()["data"] == {
-        "transport_mode": "transit",
-        "diet_type": "omnivore",
-        "housing_type": "apartment",
-    }
+    data = response.json()["data"]
+    assert data["transport_mode"] == "transit"
+    assert data["diet_type"] == "omnivore"
+    assert data["housing_type"] == "apartment"
+    assert data["updated_at"] is not None
 
 
 def test_update_profile_returns_404_without_profile(
@@ -80,16 +80,39 @@ def test_update_profile_updates_partial_fields(
     )
 
     assert response.status_code == 200
-    assert response.json()["data"] == {
-        "transport_mode": "transit",
-        "diet_type": "vegetarian",
-        "housing_type": "apartment",
-    }
+    data = response.json()["data"]
+    assert data["transport_mode"] == "transit"
+    assert data["diet_type"] == "vegetarian"
+    assert data["housing_type"] == "apartment"
+    assert data["updated_at"] is not None
 
     db_session.refresh(profile)
     assert profile.transport_mode == "transit"
     assert profile.diet_type == "vegetarian"
     assert profile.housing_type == "apartment"
+
+
+def test_update_profile_rejects_invalid_enum_value(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+    profile = UserProfile(
+        user_id=user.id,
+        transport_mode="transit",
+        diet_type="omnivore",
+        housing_type="apartment",
+    )
+    db_session.add(profile)
+    db_session.commit()
+
+    response = client.patch(
+        "/api/users/profile",
+        json={"transport_mode": "subway"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 422
 
 
 def test_onboarding_creates_profile(
@@ -109,17 +132,36 @@ def test_onboarding_creates_profile(
     )
 
     assert response.status_code == 201
-    assert response.json()["data"] == {
-        "transport_mode": "walk",
-        "diet_type": "vegetarian",
-        "housing_type": "house",
-    }
+    data = response.json()["data"]
+    assert data["transport_mode"] == "walk"
+    assert data["diet_type"] == "vegetarian"
+    assert data["housing_type"] == "house"
+    assert data["updated_at"] is not None
 
     profile = db_session.get(UserProfile, user.id)
     assert profile is not None
     assert profile.transport_mode == "walk"
     assert profile.diet_type == "vegetarian"
     assert profile.housing_type == "house"
+
+
+def test_onboarding_rejects_invalid_enum_value(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user = create_user(db_session)
+
+    response = client.post(
+        "/api/users/onboarding",
+        json={
+            "transport_mode": "walk",
+            "diet_type": "keto",
+            "housing_type": "house",
+        },
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 422
 
 
 def test_onboarding_updates_existing_profile(
@@ -147,11 +189,11 @@ def test_onboarding_updates_existing_profile(
     )
 
     assert response.status_code == 201
-    assert response.json()["data"] == {
-        "transport_mode": "transit",
-        "diet_type": "vegetarian",
-        "housing_type": "house",
-    }
+    data = response.json()["data"]
+    assert data["transport_mode"] == "transit"
+    assert data["diet_type"] == "vegetarian"
+    assert data["housing_type"] == "house"
+    assert data["updated_at"] is not None
 
     db_session.refresh(profile)
     assert profile.transport_mode == "transit"

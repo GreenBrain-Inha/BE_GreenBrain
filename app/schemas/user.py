@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from enum import Enum
 from typing import Optional
 from uuid import UUID
 
@@ -43,25 +44,49 @@ class UserMeUpdateResponse(BaseModel):
         from_attributes = True
 
 
+class TransportMode(str, Enum):
+    car = "car"
+    transit = "transit"
+    walk = "walk"
+    bike = "bike"
+    mixed = "mixed"
+
+
+class DietType(str, Enum):
+    omnivore = "omnivore"
+    vegetarian = "vegetarian"
+    vegan = "vegan"
+    flexitarian = "flexitarian"
+
+
+class HousingType(str, Enum):
+    apartment = "apartment"
+    house = "house"
+    studio = "studio"
+    dorm = "dorm"
+    other = "other"
+
+
 class UserProfileResponse(BaseModel):
-    transport_mode: str
-    diet_type: str
-    housing_type: str
+    transport_mode: TransportMode
+    diet_type: DietType
+    housing_type: HousingType
+    updated_at: datetime
 
     class Config:
         from_attributes = True
 
 
 class UserProfileUpdateRequest(BaseModel):
-    transport_mode: Optional[str] = None
-    diet_type: Optional[str] = None
-    housing_type: Optional[str] = None
+    transport_mode: Optional[TransportMode] = None
+    diet_type: Optional[DietType] = None
+    housing_type: Optional[HousingType] = None
 
 
 class UserOnboardingRequest(BaseModel):
-    transport_mode: str
-    diet_type: str
-    housing_type: str
+    transport_mode: TransportMode
+    diet_type: DietType
+    housing_type: HousingType
 
 
 UserMeResponse.model_rebuild()
