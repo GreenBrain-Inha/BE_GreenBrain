@@ -57,7 +57,8 @@ Request:
 - `GET /api/chat/models`에서 반환된 모델 ID를 그대로 사용하는 것을 전제로 한다.
 - provider가 `openai`, `anthropic`, `gemini`, `google` 중 하나면 허용한다.
 - 그 외 provider는 모든 환경에서 `400 Unsupported chat model`을 반환한다.
-- RunYourAI가 모델을 거부하거나 호출 실패 시 `502 AI provider failed to generate a response`를 반환한다.
+- RunYourAI가 HTTP 오류를 반환하면 `error.message`를 `AI 제공자 오류({status})` 메시지에 포함한다.
+- RunYourAI의 `400`, `401`, `403`, `404`, `429`는 원 status를 유지하고, provider 5xx·네트워크·timeout 오류는 `502`를 반환한다.
 
 ## Carbon Accounting
 

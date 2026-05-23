@@ -135,8 +135,30 @@ class TokenExhaustedException(AppException):
 
 
 class AiProviderException(AppException):
-    def __init__(self, message: str = "AI 응답 생성에 실패했습니다."):
-        super().__init__(message=message, status_code=status.HTTP_502_BAD_GATEWAY)
+    def __init__(
+        self,
+        message: str = "AI 응답 생성에 실패했습니다.",
+        status_code: int = status.HTTP_502_BAD_GATEWAY,
+    ):
+        super().__init__(message=message, status_code=status_code)
+
+
+class AiProviderStatusException(AiProviderException):
+    """AI provider가 반환한 HTTP 오류를 클라이언트에 안전하게 전달한다."""
+
+    _PASSTHROUGH_STATUS_CODES = frozenset({400, 401, 403, 404, 429})
+
+    def __init__(self, *, provider_status_code: int, provider_message: str | None = None):
+        message = f"AI 제공자 오류({provider_status_code})"
+        if provider_message:
+            message = f"{message}: {provider_message[:300]}"
+
+        status_code = (
+            provider_status_code
+            if provider_status_code in self._PASSTHROUGH_STATUS_CODES
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        super().__init__(message=message, status_code=status_code)
 
 
 class UnsupportedChatModelException(AppException):

@@ -5,8 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
+from openai import APIStatusError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,12 @@ from app.models import DailyTokenState, Message, TokenTransaction
 from app.services import chat as chat_service
 from app.services.token_service import today_kst
 from tests.conftest import auth_headers, create_chat_session, create_user
+
+
+def runyour_status_error(status_code: int, body: object) -> APIStatusError:
+    request = httpx.Request("POST", "https://api.runyour.ai/v1/chat/completions")
+    response = httpx.Response(status_code, request=request, json=body)
+    return APIStatusError("RunYourAI request failed", response=response, body=body)
 
 
 def test_send_message_stores_messages_deducts_tokens_sets_title(
@@ -223,6 +231,41 @@ def test_send_message_returns_502_when_ai_fails(
     )
 
     assert response.status_code == 502
+
+
+def test_send_message_surfaces_runyour_api_status_error(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session)
+    session = create_chat_session(db_session, user)
+
+    class FakeCompletions:
+        def create(self, **kwargs: object) -> object:
+            raise runyour_status_error(
+                429,
+                {"error": {"message": "model quota exceeded", "code": "rate_limit"}},
+            )
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(chat_service, "_openai_client", lambda: FakeClient())
+
+    response = client.post(
+        f"/api/chat/sessions/{session.id}/messages",
+        json={"message": "AI 실패"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 429
+    body = response.json()
+    assert body["message"] == "AI 제공자 오류(429): model quota exceeded"
+    assert db_session.scalars(select(Message)).all() == []
 
 
 def test_send_message_returns_404_for_other_users_session(

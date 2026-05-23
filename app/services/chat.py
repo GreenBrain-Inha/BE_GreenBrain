@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timezone
 from uuid import UUID
 
-from openai import OpenAI, OpenAIError
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, OpenAIError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,12 +17,15 @@ from app.services.chat_session import get_owned_session, parse_cursor
 from app.services.token_service import TokenExhausted, TokenService
 
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_CHAT_MODEL = "openai/gpt-4.1-2025-04-14"
 TITLE_MODEL = DEFAULT_CHAT_MODEL
 _ALLOWED_PROVIDERS = frozenset({"openai", "anthropic", "gemini", "google"})
 
 from app.common.exceptions.custom import (
     AiProviderException as AiProviderError,
+    AiProviderStatusException,
     UnsupportedChatModelException as UnsupportedChatModel,
 )
 
@@ -29,6 +33,8 @@ from app.common.exceptions.custom import (
 def list_models() -> list[str]:
     try:
         return [m.id for m in _openai_client().models.list().data]
+    except APIStatusError as exc:
+        raise _ai_provider_status_error(exc) from exc
     except OpenAIError as exc:
         raise AiProviderError from exc
 
@@ -50,6 +56,32 @@ def _openai_client() -> OpenAI:
         )
     except RuntimeError:
         raise AiProviderError
+
+
+def _extract_provider_error_message(exc: APIStatusError) -> str:
+    body = exc.body
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            message = error.get("message") or error.get("code") or error.get("type")
+            if message is not None:
+                return str(message).strip()
+        if error is not None:
+            return str(error).strip()
+        message = body.get("message") or body.get("detail")
+        if message is not None:
+            return str(message).strip()
+    elif body is not None:
+        return str(body).strip()
+
+    return str(exc).strip()
+
+
+def _ai_provider_status_error(exc: APIStatusError) -> AiProviderStatusException:
+    return AiProviderStatusException(
+        provider_status_code=exc.status_code,
+        provider_message=_extract_provider_error_message(exc),
+    )
 
 
 def _build_history(db: Session, *, session_id: UUID, latest_message: str) -> list[dict[str, str]]:
@@ -79,10 +111,14 @@ def generate_ai_response(
             messages=_build_history(db, session_id=session_id, latest_message=message),
         )
         request_latency = time.perf_counter() - timer_start
-    except OpenAIError as exc:
+    except APIStatusError as exc:
         logger.exception("runyour.ai API error: %s", exc)
-        if getattr(exc, "status_code", None) == 404:
-            raise UnsupportedChatModel from exc
+        raise _ai_provider_status_error(exc) from exc
+    except (APIConnectionError, APITimeoutError) as exc:
+        logger.exception("runyour.ai connection error: %s", exc)
+        raise AiProviderError(message="AI 제공자 연결에 실패했습니다.") from exc
+    except OpenAIError as exc:
+        logger.exception("runyour.ai SDK error: %s", exc)
         raise AiProviderError from exc
 
     content = response.choices[0].message.content if response.choices else None
