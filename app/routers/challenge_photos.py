@@ -13,7 +13,7 @@ from app.db import get_db
 from app.models import User
 from app.schemas.challenge import ChallengePhotoLikeResponse
 from app.services import challenge_like
-from app.services.auth import get_current_user
+from app.services.auth_service import get_current_user
 
 
 router = APIRouter()

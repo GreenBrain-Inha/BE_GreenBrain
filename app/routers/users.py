@@ -19,7 +19,7 @@ from app.schemas.user import (
     UserProfileResponse,
     UserProfileUpdateRequest,
 )
-from app.services.auth import get_current_user
+from app.services.auth_service import get_current_user
 from app.services.daily_reset import get_or_create_today_state
 from app.services import user_profile
 from app.services.storage import FileStorage, get_file_storage

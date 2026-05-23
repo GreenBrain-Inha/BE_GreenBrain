@@ -24,7 +24,7 @@ from app.schemas.challenge import (
     CurrentChallengeResponse,
     GenerateChallengeResponse,
 )
-from app.services.auth import get_current_user
+from app.services.auth_service import get_current_user
 from app.services import challenge_gen, challenge_photo
 from app.services.storage import FileStorage, get_file_storage
 

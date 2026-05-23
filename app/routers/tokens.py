@@ -11,7 +11,7 @@ from app.common.response import CommonResponse
 from app.db import get_db
 from app.models import User
 from app.schemas.token import TokenStateResponse
-from app.services.auth import get_current_user
+from app.services.auth_service import get_current_user
 from app.services.daily_reset import get_or_create_today_state
 
 
