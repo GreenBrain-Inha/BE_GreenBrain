@@ -137,7 +137,10 @@ def test_invalid_email_uses_request_validation_response(client: TestClient) -> N
     )
 
     assert response.status_code == 422
-    assert "detail" in response.json()
+    err = response.json()
+    assert err["success"] is False
+    assert err["message"] == "입력값이 올바르지 않습니다."
+    assert err["data"] is None
 
 
 def test_password_over_72_bytes_is_rejected_before_hashing(
