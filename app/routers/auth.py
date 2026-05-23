@@ -24,7 +24,12 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> CommonRespo
     user = AuthService(db).signup(email=payload.email, password=payload.password)
     return CommonResponse.success_response(
         message="회원가입이 완료되었습니다.",
-        data=SignupResponse(id=user.id, email=user.email),
+        data=SignupResponse(
+            id=user.id,
+            email=user.email,
+            onboarding_completed=False,
+            created_at=user.created_at,
+        ),
     )
 
 

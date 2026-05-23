@@ -75,11 +75,14 @@ def test_signup_creates_user_with_normalized_email_and_bcrypt_hash(
     data = body["data"]
     assert data["email"] == "user@example.com"
     assert data["id"]
+    assert data["onboarding_completed"] is False
+    assert data["created_at"]
     assert "password" not in data
     assert "password_hash" not in data
 
     user = get_user_by_email(db_session, "user@example.com")
     assert user is not None
+    assert data["created_at"] == user.created_at.isoformat()
     assert user.password_hash != "Password123"
     assert bcrypt.checkpw("Password123".encode("utf-8"), user.password_hash.encode("utf-8"))
 
