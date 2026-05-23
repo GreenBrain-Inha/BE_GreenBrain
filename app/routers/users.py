@@ -7,10 +7,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.common.exceptions.custom import InvalidFieldException, NotFoundException
+from app.common.exceptions.custom import InvalidFieldException
 from app.common.response import CommonResponse
 from app.db import get_db
-from app.models import User, UserProfile
+from app.models import User
 from app.schemas.user import (
     TodayTokensSummaryResponse,
     UserMeResponse,
@@ -20,9 +20,8 @@ from app.schemas.user import (
     UserProfileUpdateRequest,
 )
 from app.services.auth_service import get_current_user
-from app.services.daily_reset import get_or_create_today_state
-from app.services import user_profile
 from app.services.storage import FileStorage, get_file_storage
+from app.services.user_service import UserService
 
 router = APIRouter()
 
@@ -36,18 +35,16 @@ def get_me(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[UserMeResponse]:
-    state = get_or_create_today_state(db, current_user.id)
-    db.commit()
-    db.refresh(state)
+    user, state = UserService(db).get_me(current_user)
     return CommonResponse.success_response(
         message="조회 성공",
         data=UserMeResponse(
-            id=current_user.id,
-            email=current_user.email,
-            nickname=current_user.nickname,
-            profile_image_url=current_user.profile_image_url,
-            onboarding_completed=current_user.profile is not None,
-            profile=UserProfileResponse.model_validate(current_user.profile) if current_user.profile else None,
+            id=user.id,
+            email=user.email,
+            nickname=user.nickname,
+            profile_image_url=user.profile_image_url,
+            onboarding_completed=user.profile is not None,
+            profile=UserProfileResponse.model_validate(user.profile) if user.profile else None,
             today_tokens=TodayTokensSummaryResponse(date=state.date, tokens_remaining=state.tokens_remaining),
         ),
     )
@@ -66,12 +63,10 @@ async def update_me(
     if form.get("nickname") == "":
         raise InvalidFieldException(message="닉네임은 비워둘 수 없습니다.")
 
-    updated_user = user_profile.update_user_profile(
-        db,
-        user=current_user,
+    updated_user = UserService(db, storage).update_me(
+        current_user,
         nickname=nickname,
         profile_image=profile_image,
-        storage=storage,
     )
     return CommonResponse.success_response(
         message="수정되었습니다.",
@@ -82,12 +77,12 @@ async def update_me(
 @router.get("/profile", response_model=CommonResponse[UserProfileResponse])
 def get_profile(
     current_user: CurrentUser,
+    db: DbSession,
 ) -> CommonResponse[UserProfileResponse]:
-    if current_user.profile is None:
-        raise NotFoundException()
+    profile = UserService(db).get_profile(current_user)
     return CommonResponse.success_response(
         message="조회 성공",
-        data=UserProfileResponse.model_validate(current_user.profile),
+        data=UserProfileResponse.model_validate(profile),
     )
 
 
@@ -97,19 +92,12 @@ def update_profile(
     db: DbSession,
     current_user: CurrentUser,
 ) -> CommonResponse[UserProfileResponse]:
-    if current_user.profile is None:
-        raise NotFoundException()
-
-    profile = current_user.profile
-    if payload.transport_mode is not None:
-        profile.transport_mode = payload.transport_mode
-    if payload.diet_type is not None:
-        profile.diet_type = payload.diet_type
-    if payload.housing_type is not None:
-        profile.housing_type = payload.housing_type
-
-    db.commit()
-    db.refresh(profile)
+    profile = UserService(db).update_profile(
+        current_user,
+        transport_mode=payload.transport_mode,
+        diet_type=payload.diet_type,
+        housing_type=payload.housing_type,
+    )
     return CommonResponse.success_response(
         message="수정되었습니다.",
         data=UserProfileResponse.model_validate(profile),
@@ -122,22 +110,12 @@ def onboarding(
     db: DbSession,
     current_user: CurrentUser,
 ) -> CommonResponse[UserProfileResponse]:
-    if current_user.profile is None:
-        profile = UserProfile(
-            user_id=current_user.id,
-            transport_mode=payload.transport_mode,
-            diet_type=payload.diet_type,
-            housing_type=payload.housing_type,
-        )
-        db.add(profile)
-    else:
-        profile = current_user.profile
-        profile.transport_mode = payload.transport_mode
-        profile.diet_type = payload.diet_type
-        profile.housing_type = payload.housing_type
-
-    db.commit()
-    db.refresh(profile)
+    profile = UserService(db).complete_onboarding(
+        current_user,
+        transport_mode=payload.transport_mode,
+        diet_type=payload.diet_type,
+        housing_type=payload.housing_type,
+    )
     return CommonResponse.success_response(
         message="온보딩이 완료되었습니다.",
         data=UserProfileResponse.model_validate(profile),
