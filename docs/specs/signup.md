@@ -51,12 +51,15 @@
   "message": "Signup successful",
   "user": {
     "id": "uuid",
-    "email": "user@example.com"
+    "email": "user@example.com",
+    "onboarding_completed": false,
+    "created_at": "2026-05-11T00:00:00Z"
   }
 }
 ```
 
 회원가입 성공 후 자동 로그인은 하지 않는다. 응답에 `Set-Cookie`를 포함하지 않고, JWT 쿠키 발급은 로그인 기능에서 처리한다.
+`onboarding_completed`는 회원가입 직후 항상 `false`다.
 
 #### Error Responses
 
@@ -98,7 +101,7 @@
 
 ## 테스트 및 인수 기준
 
-- 유효한 이메일/비밀번호로 요청하면 `201 Created`와 `id`, `email`, `message`가 반환된다.
+- 유효한 이메일/비밀번호로 요청하면 `201 Created`와 `id`, `email`, `onboarding_completed`, `created_at`, `message`가 반환된다.
 - 회원가입 성공 시 `users` 테이블에 신규 사용자 행이 생성된다.
 - 저장된 `password_hash`는 평문 비밀번호와 다르고 bcrypt 검증이 가능하다.
 - 이메일은 앞뒤 공백 제거 및 lowercase 정규화 후 저장된다.

@@ -115,7 +115,7 @@ Query parameters:
 - 좋아요 milestone 보상은 사진 업로더에게 지급한다.
 - milestone별 보상 기본값은 `+20` 토큰이다.
 - 좋아요 보상은 KST 기준 업로더의 하루 보상 상한 `60` 토큰을 초과할 수 없다.
-- 실제 지급액은 `min(20, 60 - like_reward_given_today, 150.0 - uploader_tokens_remaining)`으로 계산한다.
+- 좋아요 보상은 기본 토큰 150을 초과해 누적될 수 있다.
 - 보상 상한 때문에 실제 지급액이 0이어도 해당 milestone은 처리된 것으로 기록할 수 있다.
 - 이미 지급 또는 처리된 milestone은 중복 지급하지 않는다.
 - 좋아요 보상 이력은 별도 `like_reward_log` 테이블 없이 `token_transactions`에 통합한다.
