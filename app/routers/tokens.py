@@ -12,7 +12,7 @@ from app.db import get_db
 from app.models import User
 from app.schemas.token import TokenStateResponse
 from app.services.auth_service import get_current_user
-from app.services.daily_reset import get_or_create_today_state
+from app.services.token_service import TokenService
 
 
 router = APIRouter()
@@ -26,9 +26,7 @@ def get_today_token_state(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[TokenStateResponse]:
-    state = get_or_create_today_state(db, current_user.id)
-    db.commit()
-    db.refresh(state)
+    state = TokenService(db).get_today_state(current_user.id)
     return CommonResponse.success_response(
         message="조회 성공",
         data=TokenStateResponse.model_validate(state),

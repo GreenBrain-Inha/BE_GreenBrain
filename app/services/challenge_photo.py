@@ -14,9 +14,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Challenge, ChallengePhoto
-from app.services.daily_reset import get_or_create_today_state
 from app.services.storage import FileStorage, StorageWriteError
-from app.services.token_account import grant_upload_reward
+from app.services.token_service import TokenService
 
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -89,9 +88,9 @@ def upload_challenge_photo(
         challenge.completed_at = datetime.now(timezone.utc)
         db.add(photo)
 
-        state = get_or_create_today_state(db, user_id)
-        reward_amount = grant_upload_reward(
-            db,
+        token_service = TokenService(db)
+        state = token_service.get_or_create_today_state(user_id)
+        reward_amount = token_service.grant_upload_reward(
             state=state,
             user_id=user_id,
             photo_id=photo_id,

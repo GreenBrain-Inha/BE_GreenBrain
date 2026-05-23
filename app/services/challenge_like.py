@@ -10,8 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import ChallengePhoto, Like, TokenTransaction
-from app.services.daily_reset import get_or_create_today_state
-from app.services.token_account import grant_like_reward
+from app.services.token_service import TokenService
 
 
 from app.common.exceptions.custom import (
@@ -65,9 +64,9 @@ def like_challenge_photo(db: Session, *, user_id: UUID, photo_id: UUID) -> Chall
             )
         )
         if existing_reward is None:
-            state = get_or_create_today_state(db, photo.user_id)
-            reward_amount = grant_like_reward(
-                db,
+            token_service = TokenService(db)
+            state = token_service.get_or_create_today_state(photo.user_id)
+            reward_amount = token_service.grant_like_reward(
                 state=state,
                 user_id=photo.user_id,
                 photo_id=photo_id,

@@ -16,7 +16,7 @@ from app.db import Base, get_db
 from app.main import app
 from app.models import Challenge, DailyTokenState, User, UserProfile
 from app.services.auth_service import create_access_token
-from app.services.daily_reset import today_kst
+from app.services.token_service import today_kst
 
 
 @pytest.fixture(autouse=True)

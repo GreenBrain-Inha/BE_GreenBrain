@@ -18,7 +18,7 @@ from app.db import Base, get_db
 from app.main import app
 from app.models import Challenge, ChallengePhoto, DailyTokenState, TokenTransaction, User
 from app.services.auth_service import create_access_token
-from app.services.daily_reset import today_kst
+from app.services.token_service import today_kst
 from app.services.storage import StorageWriteError, get_file_storage
 
 
@@ -242,7 +242,7 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     assert transaction.source_id == photo.id
 
 
-def test_photo_upload_caps_reward_at_daily_max(
+def test_photo_upload_can_recover_tokens_above_daily_base_amount(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -259,12 +259,12 @@ def test_photo_upload_caps_reward_at_daily_max(
     assert response.status_code == 201
     assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
-        "reward_amount": 10.0,
-        "tokens_remaining": 150.0,
+        "reward_amount": 20.0,
+        "tokens_remaining": 160.0,
     }
 
 
-def test_photo_upload_succeeds_when_reward_is_zero(
+def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -281,8 +281,8 @@ def test_photo_upload_succeeds_when_reward_is_zero(
     assert response.status_code == 201
     assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
-        "reward_amount": 0.0,
-        "tokens_remaining": 150.0,
+        "reward_amount": 20.0,
+        "tokens_remaining": 170.0,
     }
     assert db_session.scalar(select(ChallengePhoto)) is not None
 

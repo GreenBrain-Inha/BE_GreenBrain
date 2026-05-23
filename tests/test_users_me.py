@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.main import app
 from app.models import UserProfile
-from app.services.daily_reset import today_kst
+from app.services.token_service import today_kst
 from app.services.storage import StorageWriteError, get_file_storage
 from tests.conftest import auth_headers, create_user
 

@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Challenge, UserProfile
-from app.services.daily_reset import get_or_create_today_state
+from app.services.token_service import TokenService
 
 
 OPEN_CHALLENGE_STATUSES = ("pending_acceptance", "active")
@@ -100,7 +100,7 @@ def generate_challenge(db: Session, *, user_id: UUID) -> tuple[Challenge, bool]:
     if existing is not None:
         return existing, False
 
-    state = get_or_create_today_state(db, user_id)
+    state = TokenService(db).get_or_create_today_state(user_id)
     if state.tokens_remaining > 0:
         raise TokenNotExhausted
     if state.challenge_count >= DAILY_CHALLENGE_LIMIT:

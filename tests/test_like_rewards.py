@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Challenge, ChallengePhoto, DailyTokenState, Like, TokenTransaction, User
-from app.services.daily_reset import today_kst
+from app.services.token_service import today_kst
 from tests.conftest import auth_headers, create_user
 
 

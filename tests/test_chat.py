@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import DailyTokenState, Message, TokenTransaction
 from app.services import chat as chat_service
-from app.services.daily_reset import today_kst
+from app.services.token_service import today_kst
 from tests.conftest import auth_headers, create_chat_session, create_user
 
 

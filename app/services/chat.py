@@ -13,8 +13,7 @@ from sqlalchemy.orm import Session
 from app.models import Message
 from app.services.carbon import carbon_gco2eq_from_model_usage
 from app.services.chat_session import get_owned_session, parse_cursor
-from app.services.daily_reset import get_or_create_today_state
-from app.services.token_account import TokenExhausted, deduct_chat_usage, ensure_chat_tokens_available
+from app.services.token_service import TokenExhausted, TokenService
 
 
 DEFAULT_CHAT_MODEL = "openai/gpt-4.1-2025-04-14"
@@ -135,8 +134,9 @@ def send_message(
 ) -> tuple[Message, Message, float, bool, str | None]:
     chat_model = resolve_chat_model(model_id)
     session = get_owned_session(db, user_id=user_id, session_id=session_id)
-    state = get_or_create_today_state(db, user_id)
-    ensure_chat_tokens_available(state)
+    token_service = TokenService(db)
+    state = token_service.get_or_create_today_state(user_id)
+    token_service.ensure_chat_tokens_available(state)
 
     user_message = Message(
         user_id=user_id,
@@ -169,8 +169,7 @@ def send_message(
     db.add(response_message)
     db.flush()
 
-    exhausted = deduct_chat_usage(
-        db,
+    exhausted = token_service.deduct_chat_usage(
         state=state,
         user_id=user_id,
         message_id=response_message.id,

@@ -18,8 +18,8 @@ from app.common.exceptions.custom import (
     UnsupportedImageTypeException as UnsupportedImageType,
 )
 from app.models import DailyTokenState, User, UserProfile
-from app.services.daily_reset import get_or_create_today_state
 from app.services.storage import FileStorage, StorageWriteError
+from app.services.token_service import TokenService
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_DIMENSION = 1280
@@ -35,7 +35,7 @@ class UserService:
         self.storage = storage
 
     def get_me(self, user: User) -> tuple[User, DailyTokenState]:
-        state = get_or_create_today_state(self.db, user.id)
+        state = TokenService(self.db).get_or_create_today_state(user.id)
         self.db.commit()
         self.db.refresh(state)
         return user, state
