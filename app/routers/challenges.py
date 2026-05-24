@@ -6,26 +6,21 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, UploadFile, status
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.common.response import CommonResponse
 from app.db import get_db
-from app.models import Challenge, ChallengePhoto, Like, User
+from app.models import User
 from app.schemas.challenge import (
     AcceptChallengeResponse,
-    ChallengeFeedItemResponse,
     ChallengeFeedResponse,
-    ChallengePhotoResponse,
-    ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
-    ChallengePhotoUploadRewardResponse,
     ChallengeResponse,
     CurrentChallengeResponse,
     GenerateChallengeResponse,
 )
 from app.services.auth_service import get_current_user
-from app.services import challenge_photo
+from app.services.challenge_photo_service import ChallengePhotoService
 from app.services.challenge_service import ChallengeService
 from app.services.storage import FileStorage, get_file_storage
 
@@ -59,61 +54,14 @@ def get_challenge_feed(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CommonResponse[ChallengeFeedResponse]:
-    like_counts = (
-        select(
-            Like.photo_id.label("photo_id"),
-            func.count(Like.id).label("like_count"),
-        )
-        .group_by(Like.photo_id)
-        .subquery()
+    result = ChallengePhotoService(db, storage).get_feed(
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset,
     )
-    liked_by_me = (
-        select(Like.photo_id.label("photo_id"))
-        .where(Like.liker_user_id == current_user.id)
-        .subquery()
-    )
-    total = db.scalar(select(func.count()).select_from(ChallengePhoto)) or 0
-    rows = db.execute(
-        select(
-            ChallengePhoto,
-            Challenge,
-            User,
-            func.coalesce(like_counts.c.like_count, 0),
-            liked_by_me.c.photo_id.is_not(None),
-        )
-        .join(Challenge, Challenge.id == ChallengePhoto.challenge_id)
-        .join(User, User.id == ChallengePhoto.user_id)
-        .outerjoin(like_counts, like_counts.c.photo_id == ChallengePhoto.id)
-        .outerjoin(liked_by_me, liked_by_me.c.photo_id == ChallengePhoto.id)
-        .order_by(ChallengePhoto.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    ).all()
-
     return CommonResponse.success_response(
         message="조회 성공",
-        data=ChallengeFeedResponse(
-            items=[
-                ChallengeFeedItemResponse(
-                    photo_id=photo.id,
-                    challenge_id=photo.challenge_id,
-                    user_id=user.id,
-                    nickname=user.nickname,
-                    profile_image_url=user.profile_image_url,
-                    title=challenge.title,
-                    category=challenge.category,
-                    photo_url=storage.get_url(photo.file_path),
-                    like_count=int(like_count),
-                    liked_by_me=bool(liked),
-                    carbon_saved_gco2eq=None,
-                    created_at=photo.created_at,
-                )
-                for photo, challenge, user, like_count, liked in rows
-            ],
-            total=total,
-            limit=limit,
-            offset=offset,
-        ),
+        data=result,
     )
 
 
@@ -164,31 +112,12 @@ def upload_challenge_photo(
     db: DbSession,
     storage: Storage,
 ) -> CommonResponse[ChallengePhotoUploadResponse]:
-    result = challenge_photo.upload_challenge_photo(
-        db,
+    result = ChallengePhotoService(db, storage).upload_photo(
         user_id=current_user.id,
         challenge_id=challenge_id,
-        upload=file,
-        storage=storage,
+        file=file,
     )
     return CommonResponse.success_response(
         message="사진이 업로드되었습니다.",
-        data=ChallengePhotoUploadResponse(
-            photo=ChallengePhotoResponse(
-                id=result.photo.id,
-                challenge_id=result.photo.challenge_id,
-                file_url=result.file_url,
-                created_at=result.photo.created_at,
-            ),
-            challenge=ChallengePhotoUploadChallengeResponse(
-                id=result.challenge.id,
-                status=result.challenge.status,
-                completed_at=result.challenge.completed_at,
-            ),
-            reward=ChallengePhotoUploadRewardResponse(
-                type="upload_reward",
-                reward_amount=result.reward_amount,
-                tokens_remaining=result.tokens_remaining,
-            ),
-        ),
+        data=result,
     )
