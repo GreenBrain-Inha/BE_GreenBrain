@@ -25,7 +25,8 @@ from app.schemas.challenge import (
     GenerateChallengeResponse,
 )
 from app.services.auth_service import get_current_user
-from app.services import challenge_gen, challenge_photo
+from app.services import challenge_photo
+from app.services.challenge_service import ChallengeService
 from app.services.storage import FileStorage, get_file_storage
 
 
@@ -41,7 +42,7 @@ def get_current_challenge(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[CurrentChallengeResponse]:
-    challenge = challenge_gen.get_current_challenge(db, user_id=current_user.id)
+    challenge = ChallengeService(db).get_current(current_user.id)
     return CommonResponse.success_response(
         message="조회 성공",
         data=CurrentChallengeResponse(
@@ -126,7 +127,7 @@ def generate_challenge(
     db: DbSession,
     response: Response,
 ) -> CommonResponse[GenerateChallengeResponse]:
-    challenge, created = challenge_gen.generate_challenge(db, user_id=current_user.id)
+    challenge, created = ChallengeService(db).generate(current_user.id)
     if not created:
         response.status_code = status.HTTP_200_OK
     return CommonResponse.success_response(
@@ -144,11 +145,7 @@ def accept_challenge(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[AcceptChallengeResponse]:
-    challenge = challenge_gen.accept_challenge(
-        db,
-        user_id=current_user.id,
-        challenge_id=challenge_id,
-    )
+    challenge = ChallengeService(db).accept(current_user.id, challenge_id)
     return CommonResponse.success_response(
         message="챌린지를 수락했습니다.",
         data=AcceptChallengeResponse(challenge=ChallengeResponse.model_validate(challenge)),
