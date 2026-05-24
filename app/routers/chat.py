@@ -5,12 +5,9 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, Query, status
-from jose import JWTError, jwt
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.common.exceptions.custom import NotAuthenticatedException
 from app.common.response import CommonResponse
 from app.db import get_db
 from app.models import User
@@ -26,43 +23,27 @@ from app.schemas.chat_session import (
     ChatSessionResponse,
     ChatSessionUpdateRequest,
 )
-from app.services import chat as chat_service
-from app.services import chat_session as chat_session_service
-from app.core.security import ACCESS_TOKEN_COOKIE_NAME, JWT_ALGORITHM, get_jwt_secret
+from app.services.auth_service import get_current_user
+from app.services.chat_service import ChatService, ChatSessionService, DEFAULT_CHAT_MODEL
 
 
 router = APIRouter()
 
 
 DbSession = Annotated[Session, Depends(get_db)]
-AccessTokenCookie = Annotated[Optional[str], Cookie(alias=ACCESS_TOKEN_COOKIE_NAME)]
-
-
-def get_current_user(
-    db: DbSession,
-    access_token: AccessTokenCookie = None,
-) -> User:
-    if access_token is None:
-        raise NotAuthenticatedException()
-    try:
-        payload = jwt.decode(access_token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        user_id = UUID(str(payload["sub"]))
-    except (KeyError, ValueError, JWTError):
-        raise NotAuthenticatedException()
-    user = db.scalar(select(User).where(User.id == user_id))
-    if user is None:
-        raise NotAuthenticatedException()
-    return user
-
-
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/models", response_model=CommonResponse[ChatModelListResponse])
-def list_chat_models(current_user: CurrentUser) -> CommonResponse[ChatModelListResponse]:
+def list_chat_models(
+    current_user: CurrentUser,
+    db: DbSession,
+) -> CommonResponse[ChatModelListResponse]:
+    """현재 사용자가 선택 가능한 채팅 모델 목록을 반환한다."""
+
     return CommonResponse.success_response(
         message="조회 성공",
-        data=ChatModelListResponse(items=chat_service.list_models()),
+        data=ChatModelListResponse(items=ChatService(db).list_models()),
     )
 
 
@@ -75,7 +56,9 @@ def create_chat_session(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[ChatSessionResponse]:
-    session = chat_session_service.create_session(db, user_id=current_user.id)
+    """현재 사용자의 새 채팅 세션을 생성한다."""
+
+    session = ChatSessionService(db).create(current_user.id)
     return CommonResponse.success_response(
         message="세션이 생성되었습니다.",
         data=ChatSessionResponse(
@@ -94,12 +77,9 @@ def list_chat_sessions(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: Optional[str] = None,
 ) -> CommonResponse[ChatSessionListResponse]:
-    sessions, next_cursor = chat_session_service.list_sessions(
-        db,
-        user_id=current_user.id,
-        limit=limit,
-        cursor=cursor,
-    )
+    """현재 사용자의 채팅 세션 목록을 cursor 기반으로 반환한다."""
+
+    sessions, next_cursor = ChatSessionService(db).list(current_user.id, limit, cursor)
     return CommonResponse.success_response(
         message="조회 성공",
         data=ChatSessionListResponse(
@@ -124,12 +104,9 @@ def update_chat_session(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[ChatSessionResponse]:
-    session = chat_session_service.update_session_title(
-        db,
-        user_id=current_user.id,
-        session_id=session_id,
-        title=payload.title,
-    )
+    """현재 사용자가 소유한 채팅 세션 제목을 수정한다."""
+
+    session = ChatSessionService(db).update_title(current_user.id, session_id, payload.title)
     return CommonResponse.success_response(
         message="수정되었습니다.",
         data=ChatSessionResponse(
@@ -147,7 +124,9 @@ def delete_chat_session(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[None]:
-    chat_session_service.delete_session(db, user_id=current_user.id, session_id=session_id)
+    """현재 사용자가 소유한 채팅 세션을 삭제한다."""
+
+    ChatSessionService(db).delete(current_user.id, session_id)
     return CommonResponse.success_response("세션이 삭제되었습니다.")
 
 
@@ -158,9 +137,10 @@ def send_chat_message(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[ChatResponse]:
+    """사용자 메시지를 전송하고 AI 응답과 토큰 차감 결과를 반환한다."""
+
     user_message, response_message, tokens_remaining, exhausted, session_title = (
-        chat_service.send_message(
-            db,
+        ChatService(db).send_message(
             user_id=current_user.id,
             session_id=session_id,
             message=payload.message,
@@ -177,7 +157,7 @@ def send_chat_message(
             tokens_remaining=tokens_remaining,
             exhausted=exhausted,
             session_title=session_title,
-            model_id=response_message.model_id or chat_service.DEFAULT_CHAT_MODEL,
+            model_id=response_message.model_id or DEFAULT_CHAT_MODEL,
         ),
     )
 
@@ -190,8 +170,9 @@ def list_chat_messages(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: Optional[str] = None,
 ) -> CommonResponse[ChatMessageListResponse]:
-    messages, next_cursor = chat_service.list_messages(
-        db,
+    """현재 사용자가 소유한 채팅 세션의 메시지 목록을 반환한다."""
+
+    messages, next_cursor = ChatService(db).list_messages(
         user_id=current_user.id,
         session_id=session_id,
         limit=limit,
