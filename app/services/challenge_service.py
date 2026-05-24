@@ -33,12 +33,17 @@ class ChallengeCandidate:
 
 
 class ChallengeService:
-    """Handle challenge current/generate/accept use cases."""
+    """Handle the challenge current, generate, and accept use cases.
+
+    The challenges router calls this service for the core challenge lifecycle endpoints.
+    """
 
     def __init__(self, db: Session):
         self.db = db
 
     def get_current(self, user_id: UUID) -> Challenge | None:
+        """Return the user's latest open challenge for the current endpoint."""
+
         return self.db.scalar(
             select(Challenge)
             .where(
@@ -49,6 +54,8 @@ class ChallengeService:
         )
 
     def generate(self, user_id: UUID) -> tuple[Challenge, bool]:
+        """Create a new challenge when allowed, or return an existing open challenge."""
+
         existing = self.get_current(user_id)
         if existing is not None:
             return existing, False
@@ -82,6 +89,8 @@ class ChallengeService:
         return challenge, True
 
     def accept(self, user_id: UUID, challenge_id: UUID) -> Challenge:
+        """Accept a pending challenge owned by the user."""
+
         challenge = self.db.scalar(
             select(Challenge).where(
                 Challenge.id == challenge_id,
