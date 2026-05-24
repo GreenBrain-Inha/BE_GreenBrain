@@ -12,8 +12,8 @@ from app.common.response import CommonResponse
 from app.db import get_db
 from app.models import User
 from app.schemas.challenge import ChallengePhotoLikeResponse
-from app.services import challenge_like
 from app.services.auth_service import get_current_user
+from app.services.challenge_photo_service import ChallengePhotoService
 
 
 router = APIRouter()
@@ -28,8 +28,7 @@ def like_challenge_photo(
     current_user: CurrentUser,
     db: DbSession,
 ) -> CommonResponse[ChallengePhotoLikeResponse]:
-    result = challenge_like.like_challenge_photo(
-        db,
+    result = ChallengePhotoService(db).like_photo(
         user_id=current_user.id,
         photo_id=photo_id,
     )
