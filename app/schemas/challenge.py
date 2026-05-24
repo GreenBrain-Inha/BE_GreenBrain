@@ -89,3 +89,17 @@ class ChallengePhotoLikeResponse(BaseModel):
     reward_given: bool
     reward_amount: float
     tokens_remaining: Optional[float]
+
+
+class ChallengePhotoLikedUserItem(BaseModel):
+    user_id: UUID
+    nickname: Optional[str]
+    profile_image_url: Optional[str]
+    liked_at: datetime
+
+
+class ChallengePhotoLikedUsersResponse(BaseModel):
+    items: list[ChallengePhotoLikedUserItem]
+    total: int
+    limit: int
+    offset: int
