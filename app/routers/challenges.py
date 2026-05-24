@@ -13,12 +13,8 @@ from app.db import get_db
 from app.models import User
 from app.schemas.challenge import (
     AcceptChallengeResponse,
-    ChallengeFeedItemResponse,
     ChallengeFeedResponse,
-    ChallengePhotoResponse,
-    ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
-    ChallengePhotoUploadRewardResponse,
     ChallengeResponse,
     CurrentChallengeResponse,
     GenerateChallengeResponse,
@@ -65,28 +61,7 @@ def get_challenge_feed(
     )
     return CommonResponse.success_response(
         message="조회 성공",
-        data=ChallengeFeedResponse(
-            items=[
-                ChallengeFeedItemResponse(
-                    photo_id=item.photo.id,
-                    challenge_id=item.photo.challenge_id,
-                    user_id=item.user.id,
-                    nickname=item.user.nickname,
-                    profile_image_url=item.user.profile_image_url,
-                    title=item.challenge.title,
-                    category=item.challenge.category,
-                    photo_url=item.photo_url,
-                    like_count=item.like_count,
-                    liked_by_me=item.liked_by_me,
-                    carbon_saved_gco2eq=item.carbon_saved_gco2eq,
-                    created_at=item.photo.created_at,
-                )
-                for item in result.items
-            ],
-            total=result.total,
-            limit=result.limit,
-            offset=result.offset,
-        ),
+        data=result,
     )
 
 
@@ -144,22 +119,5 @@ def upload_challenge_photo(
     )
     return CommonResponse.success_response(
         message="사진이 업로드되었습니다.",
-        data=ChallengePhotoUploadResponse(
-            photo=ChallengePhotoResponse(
-                id=result.photo.id,
-                challenge_id=result.photo.challenge_id,
-                file_url=result.file_url,
-                created_at=result.photo.created_at,
-            ),
-            challenge=ChallengePhotoUploadChallengeResponse(
-                id=result.challenge.id,
-                status=result.challenge.status,
-                completed_at=result.challenge.completed_at,
-            ),
-            reward=ChallengePhotoUploadRewardResponse(
-                type="upload_reward",
-                reward_amount=result.reward_amount,
-                tokens_remaining=result.tokens_remaining,
-            ),
-        ),
+        data=result,
     )

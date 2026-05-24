@@ -33,13 +33,6 @@ def like_challenge_photo(
         photo_id=photo_id,
     )
     return CommonResponse.success_response(
-        message="좋아요를 눌렀습니다.",
-        data=ChallengePhotoLikeResponse(
-            photo_id=result.photo_id,
-            liked=True,
-            like_count=result.like_count,
-            reward_given=result.reward_given,
-            reward_amount=result.reward_amount,
-            tokens_remaining=result.tokens_remaining,
-        ),
+        message="좋아요가 등록되었습니다.",
+        data=result,
     )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import UUID, uuid4
@@ -27,6 +26,15 @@ from app.common.exceptions.custom import (
     UnsupportedImageTypeException as UnsupportedImageType,
 )
 from app.models import Challenge, ChallengePhoto, Like, TokenTransaction, User
+from app.schemas.challenge import (
+    ChallengeFeedItemResponse,
+    ChallengeFeedResponse,
+    ChallengePhotoLikeResponse,
+    ChallengePhotoResponse,
+    ChallengePhotoUploadChallengeResponse,
+    ChallengePhotoUploadResponse,
+    ChallengePhotoUploadRewardResponse,
+)
 from app.services.storage import FileStorage, StorageWriteError, get_file_storage
 from app.services.token_service import TokenService
 
@@ -37,43 +45,6 @@ STORED_CONTENT_TYPE = "image/webp"
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-@dataclass(frozen=True)
-class ChallengePhotoUploadResult:
-    photo: ChallengePhoto
-    challenge: Challenge
-    file_url: str
-    reward_amount: float
-    tokens_remaining: float
-
-
-@dataclass(frozen=True)
-class ChallengeFeedItemResult:
-    photo: ChallengePhoto
-    challenge: Challenge
-    user: User
-    photo_url: str
-    like_count: int
-    liked_by_me: bool
-    carbon_saved_gco2eq: float | None
-
-
-@dataclass(frozen=True)
-class ChallengeFeedResult:
-    items: list[ChallengeFeedItemResult]
-    total: int
-    limit: int
-    offset: int
-
-
-@dataclass(frozen=True)
-class ChallengePhotoLikeResult:
-    photo_id: UUID
-    like_count: int
-    reward_given: bool
-    reward_amount: float
-    tokens_remaining: float | None
-
-
 class ChallengePhotoService:
     """Handle challenge photo upload, feed, and like use cases."""
 
@@ -82,6 +53,8 @@ class ChallengePhotoService:
         self.storage = storage
 
     def _require_storage(self) -> FileStorage:
+        """Return the configured storage backend only when a use case needs it."""
+
         if self.storage is None:
             self.storage = get_file_storage()
         return self.storage
@@ -92,7 +65,7 @@ class ChallengePhotoService:
         user_id: UUID,
         challenge_id: UUID,
         file: UploadFile,
-    ) -> ChallengePhotoUploadResult:
+    ) -> ChallengePhotoUploadResponse:
         """Upload a challenge proof photo and apply the upload reward."""
 
         challenge = self.db.get(Challenge, challenge_id)
@@ -111,7 +84,7 @@ class ChallengePhotoService:
 
         image_bytes = _validate_and_process_image(file)
         photo_id = uuid4()
-        storage_key = f"challenge-photos/{photo_id}.webp"
+        storage_key = _build_storage_key(photo_id)
         storage = self._require_storage()
 
         try:
@@ -146,15 +119,26 @@ class ChallengePhotoService:
 
         self.db.refresh(photo)
         self.db.refresh(challenge)
-        return ChallengePhotoUploadResult(
-            photo=photo,
-            challenge=challenge,
-            file_url=storage.get_url(stored_key),
-            reward_amount=reward_amount,
-            tokens_remaining=state.tokens_remaining,
+        return ChallengePhotoUploadResponse(
+            photo=ChallengePhotoResponse(
+                id=photo.id,
+                challenge_id=photo.challenge_id,
+                file_url=storage.get_url(stored_key),
+                created_at=photo.created_at,
+            ),
+            challenge=ChallengePhotoUploadChallengeResponse(
+                id=challenge.id,
+                status=challenge.status,
+                completed_at=challenge.completed_at,
+            ),
+            reward=ChallengePhotoUploadRewardResponse(
+                type="upload_reward",
+                reward_amount=reward_amount,
+                tokens_remaining=state.tokens_remaining,
+            ),
         )
 
-    def get_feed(self, *, user_id: UUID, limit: int, offset: int) -> ChallengeFeedResult:
+    def get_feed(self, *, user_id: UUID, limit: int, offset: int) -> ChallengeFeedResponse:
         """Return challenge photo feed items with like counts and viewer like state."""
 
         storage = self._require_storage()
@@ -189,16 +173,21 @@ class ChallengePhotoService:
             .offset(offset)
         ).all()
 
-        return ChallengeFeedResult(
+        return ChallengeFeedResponse(
             items=[
-                ChallengeFeedItemResult(
-                    photo=photo,
-                    challenge=challenge,
-                    user=user,
+                ChallengeFeedItemResponse(
+                    photo_id=photo.id,
+                    challenge_id=photo.challenge_id,
+                    user_id=user.id,
+                    nickname=user.nickname,
+                    profile_image_url=user.profile_image_url,
+                    title=challenge.title,
+                    category=challenge.category,
                     photo_url=storage.get_url(photo.file_path),
                     like_count=int(like_count),
                     liked_by_me=bool(liked),
                     carbon_saved_gco2eq=None,
+                    created_at=photo.created_at,
                 )
                 for photo, challenge, user, like_count, liked in rows
             ],
@@ -207,7 +196,7 @@ class ChallengePhotoService:
             offset=offset,
         )
 
-    def like_photo(self, *, user_id: UUID, photo_id: UUID) -> ChallengePhotoLikeResult:
+    def like_photo(self, *, user_id: UUID, photo_id: UUID) -> ChallengePhotoLikeResponse:
         """Like another user's challenge photo and grant milestone rewards."""
 
         photo = self.db.get(ChallengePhoto, photo_id)
@@ -263,8 +252,9 @@ class ChallengePhotoService:
             self.db.rollback()
             raise PhotoAlreadyLiked from exc
 
-        return ChallengePhotoLikeResult(
+        return ChallengePhotoLikeResponse(
             photo_id=photo_id,
+            liked=True,
             like_count=like_count,
             reward_given=reward_given,
             reward_amount=reward_amount,
@@ -272,7 +262,15 @@ class ChallengePhotoService:
         )
 
 
+def _build_storage_key(photo_id: UUID) -> str:
+    """Build the storage object key for a challenge proof photo."""
+
+    return f"challenge-photos/{photo_id}.webp"
+
+
 def _validate_and_process_image(upload: UploadFile) -> bytes:
+    """Validate an uploaded image and convert it to bounded WebP bytes."""
+
     if upload.content_type not in ALLOWED_CONTENT_TYPES:
         raise UnsupportedImageType
 
