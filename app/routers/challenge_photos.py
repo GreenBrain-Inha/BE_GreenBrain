@@ -46,6 +46,8 @@ def get_challenge_photo_liked_users(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CommonResponse[ChallengePhotoLikedUsersResponse]:
+    """인증된 사용자가 특정 인증 사진의 좋아요 사용자 목록을 조회한다."""
+
     result = ChallengePhotoService(db).get_liked_users(
         photo_id=photo_id,
         limit=limit,

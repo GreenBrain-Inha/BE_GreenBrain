@@ -270,7 +270,7 @@ class ChallengePhotoService:
         limit: int,
         offset: int,
     ) -> ChallengePhotoLikedUsersResponse:
-        """Return users who liked a challenge photo, ordered by newest like first."""
+        """특정 인증 사진에 좋아요를 누른 사용자 목록을 최신순으로 조회한다."""
 
         photo = self.db.get(ChallengePhoto, photo_id)
         if photo is None:
