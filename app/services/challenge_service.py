@@ -25,98 +25,98 @@ DAILY_CHALLENGE_LIMIT = 3
 DEFAULT_CHALLENGE_OPTIONS = (
     (
         "energy",
-        "Standby power off",
-        "Turn off unused lights and unplug idle chargers once today.",
+        "대기전력 끄기",
+        "오늘 한 번 사용하지 않는 조명과 충전기의 전원을 꺼 보세요.",
     ),
     (
         "energy",
-        "Reduce lighting for one hour",
-        "Use less lighting for one hour today by relying on daylight or fewer rooms.",
+        "조명 사용 1시간 줄이기",
+        "오늘 1시간 동안 자연광을 활용하거나 필요한 공간의 조명만 켜 보세요.",
     ),
     (
         "lifestyle",
-        "Take one shorter shower",
-        "Reduce shower time once today to save warm water and energy.",
+        "샤워 시간 줄이기",
+        "오늘 샤워 시간을 한 번 짧게 줄여 따뜻한 물과 에너지를 아껴 보세요.",
     ),
 )
 CAR_TRANSPORT_OPTIONS = (
     (
         "transport",
-        "Walk or cycle one nearby trip",
-        "Replace one nearby car trip with walking or cycling today.",
+        "가까운 거리는 도보나 자전거 이용하기",
+        "오늘 가까운 거리 이동 한 번을 자동차 대신 걷기나 자전거로 바꿔 보세요.",
     ),
     (
         "transport",
-        "Skip one short car ride",
-        "Avoid one short vehicle trip by combining errands or choosing a closer option.",
+        "짧은 차량 이동 1회 줄이기",
+        "오늘 짧은 차량 이동 한 번을 줄이고 가까운 선택지나 묶음 이동을 활용해 보세요.",
     ),
     (
         "transport",
-        "Use transit or walking once",
-        "Choose public transit, walking, or cycling for one trip instead of driving.",
+        "대중교통 또는 도보로 한 번 이동하기",
+        "오늘 이동 한 번은 자동차 대신 대중교통, 도보, 자전거 중 하나를 선택해 보세요.",
     ),
 )
 LOW_CARBON_TRANSPORT_OPTIONS = (
     (
         "transport",
-        "Keep one low-carbon trip",
-        "Make one trip today by transit, walking, cycling, or another low-carbon option.",
+        "저탄소 이동 한 번 실천하기",
+        "오늘 한 번은 대중교통, 걷기, 자전거처럼 탄소 배출이 적은 방식으로 이동해 보세요.",
     ),
     (
         "transport",
-        "Plan one efficient route",
-        "Group nearby errands into one route to reduce unnecessary travel.",
+        "이동 동선 효율화하기",
+        "오늘 가까운 볼일을 한 번에 묶어 불필요한 이동을 줄여 보세요.",
     ),
 )
 OMNIVORE_DIET_OPTIONS = (
     (
         "diet",
-        "Choose one plant-forward meal",
-        "Make one meal today centered on vegetables, grains, or beans.",
+        "채식 중심 한 끼 먹기",
+        "오늘 한 끼는 채소, 곡물, 콩류를 중심으로 구성해 보세요.",
     ),
     (
         "diet",
-        "Eat one meat-free meal",
-        "Have one meal today without meat and choose a lower-carbon protein.",
+        "육류 없는 식사 한 번 하기",
+        "오늘 한 끼는 육류를 제외하고 탄소 배출이 적은 단백질을 선택해 보세요.",
     ),
     (
         "diet",
-        "Use seasonal vegetables once",
-        "Prepare or choose one meal using seasonal vegetables today.",
+        "제철 채소 활용하기",
+        "오늘 한 끼에 제철 채소를 활용해 식사를 준비하거나 선택해 보세요.",
     ),
 )
 LOW_CARBON_DIET_OPTIONS = (
     (
         "diet",
-        "Reduce food waste once",
-        "Plan one meal today to avoid throwing away edible food.",
+        "음식물 쓰레기 줄이기",
+        "오늘 한 끼는 먹을 수 있는 음식이 버려지지 않도록 식사량을 계획해 보세요.",
     ),
     (
         "diet",
-        "Use leftover ingredients",
-        "Use leftover ingredients for one meal or snack today.",
+        "남은 재료 활용하기",
+        "오늘 남은 재료를 활용해 한 끼나 간식을 만들어 보세요.",
     ),
     (
         "diet",
-        "Choose less packaging",
-        "Pick one meal or snack with less disposable packaging today.",
+        "포장 적은 식사 선택하기",
+        "오늘 한 번은 일회용 포장이 적은 식사나 간식을 선택해 보세요.",
     ),
 )
 HOME_ENERGY_OPTIONS = (
     (
         "energy",
-        "Cut standby power",
-        "Turn off unused lights and unplug idle chargers once today.",
+        "대기전력 차단하기",
+        "오늘 사용하지 않는 전자기기 플러그나 충전기를 한 번 뽑아 보세요.",
     ),
     (
         "energy",
-        "Reduce heating or cooling for one hour",
-        "Run one hour today with lower heating or cooling demand.",
+        "냉난방 사용 1시간 줄이기",
+        "오늘 1시간 동안 냉난방 사용을 줄이고 실내 온도를 조절해 보세요.",
     ),
     (
         "lifestyle",
-        "Save water once",
-        "Use less water during one shower, wash, or cleaning task today.",
+        "물 사용 줄이기",
+        "오늘 샤워, 세탁, 설거지 중 한 가지에서 물 사용량을 줄여 보세요.",
     ),
 )
 
