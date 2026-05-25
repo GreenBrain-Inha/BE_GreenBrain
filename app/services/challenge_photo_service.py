@@ -30,6 +30,8 @@ from app.schemas.challenge import (
     ChallengeFeedItemResponse,
     ChallengeFeedResponse,
     ChallengePhotoLikeResponse,
+    ChallengePhotoLikedUserItem,
+    ChallengePhotoLikedUsersResponse,
     ChallengePhotoResponse,
     ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
@@ -259,6 +261,47 @@ class ChallengePhotoService:
             reward_given=reward_given,
             reward_amount=reward_amount,
             tokens_remaining=tokens_remaining,
+        )
+
+    def get_liked_users(
+        self,
+        *,
+        photo_id: UUID,
+        limit: int,
+        offset: int,
+    ) -> ChallengePhotoLikedUsersResponse:
+        """특정 인증 사진에 좋아요를 누른 사용자 목록을 최신순으로 조회한다."""
+
+        photo = self.db.get(ChallengePhoto, photo_id)
+        if photo is None:
+            raise ChallengePhotoNotFound
+
+        total = (
+            self.db.scalar(select(func.count()).select_from(Like).where(Like.photo_id == photo_id))
+            or 0
+        )
+        rows = self.db.execute(
+            select(Like, User)
+            .join(User, User.id == Like.liker_user_id)
+            .where(Like.photo_id == photo_id)
+            .order_by(Like.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+
+        return ChallengePhotoLikedUsersResponse(
+            items=[
+                ChallengePhotoLikedUserItem(
+                    user_id=user.id,
+                    nickname=user.nickname,
+                    profile_image_url=user.profile_image_url,
+                    liked_at=like.created_at,
+                )
+                for like, user in rows
+            ],
+            total=total,
+            limit=limit,
+            offset=offset,
         )
 
 
