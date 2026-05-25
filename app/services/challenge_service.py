@@ -53,7 +53,7 @@ class ChallengeService:
         )
 
     def generate(self, user_id: UUID) -> tuple[Challenge, bool]:
-        """Create a new challenge when allowed, or return an existing open challenge."""
+        """열린 챌린지가 있으면 반환하고, 없으면 토큰 잔량과 관계없이 새 챌린지를 생성한다."""
 
         existing = self.get_current(user_id)
         if existing is not None:
