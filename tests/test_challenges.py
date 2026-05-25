@@ -188,17 +188,28 @@ def test_generate_creates_pending_challenge_when_tokens_exhausted(
     assert state.challenge_count == 1
 
 
-def test_generate_rejects_when_tokens_remain(
+def test_generate_creates_pending_challenge_when_tokens_are_full(
     client: TestClient,
     db_session: Session,
 ) -> None:
     user = create_user(db_session)
-    create_daily_state(db_session, user, tokens_remaining=1.0)
+    create_daily_state(db_session, user, tokens_remaining=150.0)
 
     response = client.post("/api/challenges/generate", headers=auth_headers(user))
 
-    assert response.status_code == 409
-    assert db_session.scalars(select(Challenge)).all() == []
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["created"] is True
+    assert data["challenge"]["status"] == "pending_acceptance"
+
+    challenge = db_session.scalar(select(Challenge))
+    assert challenge is not None
+    assert challenge.status == "pending_acceptance"
+
+    state = db_session.get(DailyTokenState, {"user_id": user.id, "date": today_kst()})
+    assert state is not None
+    assert state.tokens_remaining == 150.0
+    assert state.challenge_count == 1
 
 
 def test_generate_returns_existing_open_challenge_without_creating_new_row(

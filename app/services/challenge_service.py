@@ -14,7 +14,6 @@ from app.common.exceptions.custom import (
     ChallengeNotFoundException as ChallengeNotFound,
     ChallengeNotPendingException as ChallengeNotPending,
     DailyChallengeLimitReachedException as DailyChallengeLimitReached,
-    TokenNotExhaustedException as TokenNotExhausted,
 )
 from app.models import Challenge, UserProfile
 from app.services.token_service import TokenService
@@ -61,8 +60,6 @@ class ChallengeService:
             return existing, False
 
         state = TokenService(self.db).get_or_create_today_state(user_id)
-        if state.tokens_remaining > 0:
-            raise TokenNotExhausted
         if state.challenge_count >= DAILY_CHALLENGE_LIMIT:
             raise DailyChallengeLimitReached
 
