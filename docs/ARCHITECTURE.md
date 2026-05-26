@@ -713,8 +713,8 @@ Storage backend selection:
 - Supabase uses bucket `greenbrain-uploads`.
 - Challenge photo object keys are `challenge-photos/{photo_id}.webp`.
 - Profile image object keys are `profile-images/{user_id}/{uuid}.webp`.
-- Supabase public URLs are `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}`.
-- `SUPABASE_STORAGE_PUBLIC_BASE_URL` excludes the bucket name, for example `https://<project-ref>.supabase.co/storage/v1/object/public`.
+- Supabase public URLs are `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{SUPABASE_STORAGE_BUCKET}/{key}` when the base URL excludes the bucket.
+- If `SUPABASE_STORAGE_PUBLIC_BASE_URL` already includes `greenbrain-uploads`, URLs are built as `{SUPABASE_STORAGE_PUBLIC_BASE_URL}/{key}` to avoid a duplicate bucket segment.
 
 ---
 

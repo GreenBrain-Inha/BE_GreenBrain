@@ -92,6 +92,46 @@ def test_supabase_storage_get_url_includes_public_base_bucket_and_key() -> None:
     )
 
 
+def test_supabase_storage_get_url_does_not_duplicate_bucket_when_base_includes_bucket() -> None:
+    storage = SupabaseStorage(
+        supabase_url="https://project-ref.supabase.co",
+        service_role_key="service-role",
+        bucket="greenbrain-uploads",
+        public_base_url=(
+            "https://project-ref.supabase.co/storage/v1/object/public/"
+            "greenbrain-uploads"
+        ),
+        client=httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200))
+        ),
+    )
+
+    assert storage.get_url("challenge-photos/uuid.webp") == (
+        "https://project-ref.supabase.co/storage/v1/object/public/"
+        "greenbrain-uploads/challenge-photos/uuid.webp"
+    )
+
+
+def test_supabase_storage_normalizes_duplicate_bucket_prefix_from_key() -> None:
+    storage = SupabaseStorage(
+        supabase_url="https://project-ref.supabase.co",
+        service_role_key="service-role",
+        bucket="greenbrain-uploads",
+        public_base_url=(
+            "https://project-ref.supabase.co/storage/v1/object/public/"
+            "greenbrain-uploads"
+        ),
+        client=httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200))
+        ),
+    )
+
+    assert storage.get_url("greenbrain-uploads/challenge-photos/uuid.webp") == (
+        "https://project-ref.supabase.co/storage/v1/object/public/"
+        "greenbrain-uploads/challenge-photos/uuid.webp"
+    )
+
+
 def test_supabase_storage_put_uploads_without_network() -> None:
     requests: list[httpx.Request] = []
 
@@ -124,7 +164,7 @@ def test_supabase_storage_put_uploads_without_network() -> None:
     assert request.content == b"image-bytes"
 
 
-def test_supabase_storage_put_rejects_duplicate_prefix_key() -> None:
+def test_supabase_storage_put_removes_duplicate_bucket_prefix_key() -> None:
     storage = SupabaseStorage(
         supabase_url="https://project-ref.supabase.co",
         service_role_key="service-role",
@@ -135,9 +175,13 @@ def test_supabase_storage_put_rejects_duplicate_prefix_key() -> None:
         ),
     )
 
-    stored_key = storage.put("uuid.webp", b"image-bytes", "image/webp")
+    stored_key = storage.put(
+        "greenbrain-uploads/challenge-photos/uuid.webp",
+        b"image-bytes",
+        "image/webp",
+    )
 
-    assert stored_key == "uuid.webp"
+    assert stored_key == "challenge-photos/uuid.webp"
 
 
 def test_supabase_storage_put_raises_storage_write_error_on_failure() -> None:

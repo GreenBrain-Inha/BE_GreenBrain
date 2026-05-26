@@ -106,7 +106,10 @@ class SupabaseStorage:
 
     def get_url(self, key: str) -> str:
         normalized_key = self._normalize_key(key)
-        return f"{self.public_base_url}/{self.bucket}/{quote(normalized_key, safe='/')}"
+        quoted_key = quote(normalized_key, safe="/")
+        if self._public_base_includes_bucket():
+            return f"{self.public_base_url}/{quoted_key}"
+        return f"{self.public_base_url}/{self.bucket}/{quoted_key}"
 
     def delete(self, key: str) -> None:
         normalized_key = self._normalize_key(key)
@@ -138,9 +141,18 @@ class SupabaseStorage:
 
     def _normalize_key(self, key: str) -> str:
         normalized = key.replace("\\", "/").lstrip("/")
+        bucket_prefix = f"{self.bucket}/"
+        if normalized == self.bucket:
+            normalized = ""
+        elif normalized.startswith(bucket_prefix):
+            normalized = normalized.removeprefix(bucket_prefix)
         if not normalized or normalized == "." or ".." in normalized.split("/"):
             raise StorageWriteError
         return normalized
+
+    def _public_base_includes_bucket(self) -> bool:
+        normalized_base = self.public_base_url.rstrip("/")
+        return normalized_base.rsplit("/", 1)[-1] == self.bucket
 
 
 def get_file_storage() -> FileStorage:
