@@ -16,6 +16,7 @@ from app.db import Base, get_db
 from app.main import app
 from app.models import Challenge, DailyTokenState, User, UserProfile
 from app.services.auth_service import create_access_token
+from app.services import challenge_service
 from app.services.token_service import today_kst
 
 
@@ -86,6 +87,26 @@ def create_daily_state(
     db_session.commit()
     db_session.refresh(state)
     return state
+
+
+def create_profile(
+    db_session: Session,
+    user: User,
+    *,
+    transport_mode: str,
+    diet_type: str,
+    housing_type: str,
+) -> UserProfile:
+    profile = UserProfile(
+        user_id=user.id,
+        transport_mode=transport_mode,
+        diet_type=diet_type,
+        housing_type=housing_type,
+    )
+    db_session.add(profile)
+    db_session.commit()
+    db_session.refresh(profile)
+    return profile
 
 
 def create_challenge(
@@ -159,15 +180,20 @@ def test_current_excludes_completed_challenge(
 def test_generate_creates_pending_challenge_when_tokens_exhausted(
     client: TestClient,
     db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user = create_user(db_session)
-    db_session.add(
-        UserProfile(
-            user_id=user.id,
-            transport_mode="car",
-            diet_type="omnivore",
-            housing_type="apartment",
-        )
+    create_profile(
+        db_session,
+        user,
+        transport_mode="car",
+        diet_type="omnivore",
+        housing_type="apartment",
+    )
+    monkeypatch.setattr(
+        challenge_service.random,
+        "choice",
+        lambda candidates: next(candidate for candidate in candidates if candidate.category == "transport"),
     )
     create_daily_state(db_session, user, tokens_remaining=0.0)
 
@@ -188,17 +214,103 @@ def test_generate_creates_pending_challenge_when_tokens_exhausted(
     assert state.challenge_count == 1
 
 
-def test_generate_rejects_when_tokens_remain(
+def test_generate_creates_pending_challenge_when_tokens_are_full(
     client: TestClient,
     db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user = create_user(db_session)
-    create_daily_state(db_session, user, tokens_remaining=1.0)
+    monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[1])
+    create_daily_state(db_session, user, tokens_remaining=150.0)
 
     response = client.post("/api/challenges/generate", headers=auth_headers(user))
 
-    assert response.status_code == 409
-    assert db_session.scalars(select(Challenge)).all() == []
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["created"] is True
+    assert data["challenge"]["status"] == "pending_acceptance"
+    assert data["challenge"]["title"] == challenge_service.DEFAULT_CHALLENGE_OPTIONS[1][1]
+
+    challenge = db_session.scalar(select(Challenge))
+    assert challenge is not None
+    assert challenge.status == "pending_acceptance"
+
+    state = db_session.get(DailyTokenState, {"user_id": user.id, "date": today_kst()})
+    assert state is not None
+    assert state.tokens_remaining == 150.0
+    assert state.challenge_count == 1
+
+
+def test_generate_uses_car_transport_candidate(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session, email="car-candidate@example.com")
+    create_profile(
+        db_session,
+        user,
+        transport_mode="car",
+        diet_type="unknown",
+        housing_type="unknown",
+    )
+    monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[0])
+    create_daily_state(db_session, user, tokens_remaining=50.0)
+
+    response = client.post("/api/challenges/generate", headers=auth_headers(user))
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["challenge"]["category"] == "transport"
+    assert data["challenge"]["title"] == challenge_service.CAR_TRANSPORT_OPTIONS[0][1]
+
+
+def test_generate_uses_omnivore_diet_candidate(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session, email="diet-candidate@example.com")
+    create_profile(
+        db_session,
+        user,
+        transport_mode="unknown",
+        diet_type="omnivore",
+        housing_type="unknown",
+    )
+    monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[1])
+    create_daily_state(db_session, user, tokens_remaining=50.0)
+
+    response = client.post("/api/challenges/generate", headers=auth_headers(user))
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["challenge"]["category"] == "diet"
+    assert data["challenge"]["title"] == challenge_service.OMNIVORE_DIET_OPTIONS[1][1]
+
+
+def test_generate_uses_housing_energy_candidate(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = create_user(db_session, email="housing-candidate@example.com")
+    create_profile(
+        db_session,
+        user,
+        transport_mode="unknown",
+        diet_type="unknown",
+        housing_type="house",
+    )
+    monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[0])
+    create_daily_state(db_session, user, tokens_remaining=50.0)
+
+    response = client.post("/api/challenges/generate", headers=auth_headers(user))
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["challenge"]["category"] == "energy"
+    assert data["challenge"]["title"] == challenge_service.HOME_ENERGY_OPTIONS[0][1]
 
 
 def test_generate_returns_existing_open_challenge_without_creating_new_row(
