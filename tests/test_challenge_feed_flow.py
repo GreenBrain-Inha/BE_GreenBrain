@@ -1,4 +1,4 @@
-"""MVP challenge feed flow regression tests."""
+"""최소 기능 챌린지 피드 핵심 플로우 회귀 테스트."""
 
 from __future__ import annotations
 

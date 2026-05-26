@@ -1,4 +1,4 @@
-"""Challenge photo upload, feed, and like service logic."""
+"""챌린지 인증 사진 업로드, 피드, 좋아요 서비스 로직."""
 
 from __future__ import annotations
 
@@ -48,14 +48,14 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 class ChallengePhotoService:
-    """Handle challenge photo upload, feed, and like use cases."""
+    """챌린지 인증 사진 업로드, 피드, 좋아요 관련 유스케이스를 처리한다."""
 
     def __init__(self, db: Session, storage: FileStorage | None = None):
         self.db = db
         self.storage = storage
 
     def _require_storage(self) -> FileStorage:
-        """Return the configured storage backend only when a use case needs it."""
+        """저장소가 필요한 유스케이스에서만 설정된 저장소 구현체를 반환한다."""
 
         if self.storage is None:
             self.storage = get_file_storage()
@@ -68,7 +68,7 @@ class ChallengePhotoService:
         challenge_id: UUID,
         file: UploadFile,
     ) -> ChallengePhotoUploadResponse:
-        """Upload a challenge proof photo and apply the upload reward."""
+        """챌린지 인증 사진을 업로드하고 업로드 보상을 적용한다."""
 
         challenge = self.db.get(Challenge, challenge_id)
         if challenge is None:
@@ -141,7 +141,7 @@ class ChallengePhotoService:
         )
 
     def get_feed(self, *, user_id: UUID, limit: int, offset: int) -> ChallengeFeedResponse:
-        """Return challenge photo feed items with like counts and viewer like state."""
+        """챌린지 인증 사진 피드를 좋아요 수와 조회자 좋아요 여부와 함께 조회한다."""
 
         storage = self._require_storage()
         like_counts = (
@@ -199,7 +199,7 @@ class ChallengePhotoService:
         )
 
     def like_photo(self, *, user_id: UUID, photo_id: UUID) -> ChallengePhotoLikeResponse:
-        """Like another user's challenge photo and grant milestone rewards."""
+        """다른 사용자의 인증 사진에 좋아요를 등록하고 milestone 보상을 처리한다."""
 
         photo = self.db.get(ChallengePhoto, photo_id)
         if photo is None:
@@ -304,15 +304,33 @@ class ChallengePhotoService:
             offset=offset,
         )
 
+    def delete_photo(self, *, user_id: UUID, photo_id: UUID) -> None:
+        """본인이 업로드한 인증 사진과 연결된 좋아요를 hard delete한다."""
+
+        photo = self.db.get(ChallengePhoto, photo_id)
+        if photo is None:
+            raise ChallengePhotoNotFound
+        if photo.user_id != user_id:
+            raise ChallengeNotOwned
+
+        storage = self._require_storage()
+        try:
+            storage.delete(photo.file_path)
+        except StorageWriteError as exc:
+            raise StorageFailed from exc
+
+        self.db.delete(photo)
+        self.db.commit()
+
 
 def _build_storage_key(photo_id: UUID) -> str:
-    """Build the storage object key for a challenge proof photo."""
+    """챌린지 인증 사진의 storage object key를 생성한다."""
 
     return f"challenge-photos/{photo_id}.webp"
 
 
 def _validate_and_process_image(upload: UploadFile) -> bytes:
-    """Validate an uploaded image and convert it to bounded WebP bytes."""
+    """업로드 이미지를 검증하고 제한 크기의 WebP 바이트로 변환한다."""
 
     if upload.content_type not in ALLOWED_CONTENT_TYPES:
         raise UnsupportedImageType

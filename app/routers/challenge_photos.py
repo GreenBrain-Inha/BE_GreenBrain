@@ -1,4 +1,4 @@
-"""Challenge photo routes."""
+"""챌린지 인증 사진 라우터."""
 
 from __future__ import annotations
 
@@ -14,12 +14,14 @@ from app.models import User
 from app.schemas.challenge import ChallengePhotoLikedUsersResponse, ChallengePhotoLikeResponse
 from app.services.auth_service import get_current_user
 from app.services.challenge_photo_service import ChallengePhotoService
+from app.services.storage import FileStorage, get_file_storage
 
 
 router = APIRouter()
 
 DbSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+Storage = Annotated[FileStorage, Depends(get_file_storage)]
 
 
 @router.post("/{photo_id}/like", response_model=CommonResponse[ChallengePhotoLikeResponse])
@@ -35,6 +37,23 @@ def like_challenge_photo(
     return CommonResponse.success_response(
         message="좋아요가 등록되었습니다.",
         data=result,
+    )
+
+
+@router.delete("/{photo_id}", response_model=CommonResponse[None])
+def delete_challenge_photo(
+    photo_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+    storage: Storage,
+) -> CommonResponse[None]:
+    ChallengePhotoService(db, storage).delete_photo(
+        user_id=current_user.id,
+        photo_id=photo_id,
+    )
+    return CommonResponse.success_response(
+        message="인증 사진이 삭제되었습니다.",
+        data=None,
     )
 
 
