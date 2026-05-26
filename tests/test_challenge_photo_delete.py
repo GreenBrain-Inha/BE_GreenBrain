@@ -1,4 +1,4 @@
-"""Tests for challenge photo delete endpoint."""
+"""챌린지 인증 사진 삭제 endpoint 테스트."""
 
 from __future__ import annotations
 

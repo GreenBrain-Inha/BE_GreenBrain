@@ -1,4 +1,4 @@
-"""Challenge photo routes."""
+"""챌린지 인증 사진 라우터."""
 
 from __future__ import annotations
 

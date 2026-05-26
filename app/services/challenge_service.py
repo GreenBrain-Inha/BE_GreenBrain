@@ -1,4 +1,4 @@
-"""Challenge current/generate/accept service logic."""
+"""챌린지 current/generate/accept 서비스 로직."""
 
 from __future__ import annotations
 
@@ -130,16 +130,13 @@ class ChallengeCandidate:
 
 
 class ChallengeService:
-    """Handle the challenge current, generate, and accept use cases.
-
-    The challenges router calls this service for the core challenge lifecycle endpoints.
-    """
+    """챌린지 핵심 생명주기 endpoint에서 사용하는 current/generate/accept 유스케이스를 처리한다."""
 
     def __init__(self, db: Session):
         self.db = db
 
     def get_current(self, user_id: UUID) -> Challenge | None:
-        """Return the user's latest open challenge for the current endpoint."""
+        """사용자의 최신 열린 챌린지를 조회한다."""
 
         return self.db.scalar(
             select(Challenge)
@@ -184,7 +181,7 @@ class ChallengeService:
         return challenge, True
 
     def accept(self, user_id: UUID, challenge_id: UUID) -> Challenge:
-        """Accept a pending challenge owned by the user."""
+        """사용자 본인의 대기 중인 챌린지를 수락한다."""
 
         challenge = self.db.scalar(
             select(Challenge).where(
