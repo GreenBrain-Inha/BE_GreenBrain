@@ -304,6 +304,24 @@ class ChallengePhotoService:
             offset=offset,
         )
 
+    def delete_photo(self, *, user_id: UUID, photo_id: UUID) -> None:
+        """본인이 업로드한 인증 사진과 연결된 좋아요를 hard delete한다."""
+
+        photo = self.db.get(ChallengePhoto, photo_id)
+        if photo is None:
+            raise ChallengePhotoNotFound
+        if photo.user_id != user_id:
+            raise ChallengeNotOwned
+
+        storage = self._require_storage()
+        try:
+            storage.delete(photo.file_path)
+        except StorageWriteError as exc:
+            raise StorageFailed from exc
+
+        self.db.delete(photo)
+        self.db.commit()
+
 
 def _build_storage_key(photo_id: UUID) -> str:
     """Build the storage object key for a challenge proof photo."""
