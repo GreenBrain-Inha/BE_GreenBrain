@@ -168,6 +168,12 @@ def generate_ai_response(
         raise AiProviderError
 
     output_tokens = getattr(getattr(response, "usage", None), "completion_tokens", None)
+    logger.info(
+        "MODEL INFO (model=%s latency=%.3fs output_tokens=%s)",
+        model_id,
+        request_latency,
+        output_tokens,
+    )
     carbon_gco2eq = carbon_gco2eq_from_model_usage(
         model_id=model_id,
         output_token_count=output_tokens,
