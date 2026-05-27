@@ -23,7 +23,14 @@ from app.services.carbon import carbon_gco2eq_from_model_usage
 from app.services.token_service import TokenService
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
+model_logger = logging.getLogger("greenbrain.model_info")
+if not model_logger.handlers:
+    model_handler = logging.StreamHandler()
+    model_handler.setFormatter(logging.Formatter("MODEL INFO: %(message)s"))
+    model_logger.addHandler(model_handler)
+model_logger.setLevel(logging.INFO)
+model_logger.propagate = False
 
 DEFAULT_CHAT_MODEL = "openai/gpt-4.1-2025-04-14"
 TITLE_MODEL = DEFAULT_CHAT_MODEL
@@ -168,8 +175,8 @@ def generate_ai_response(
         raise AiProviderError
 
     output_tokens = getattr(getattr(response, "usage", None), "completion_tokens", None)
-    logger.info(
-        "MODEL INFO (model=%s latency=%.3fs output_tokens=%s)",
+    model_logger.info(
+        "model=%s latency=%.3fs output_tokens=%s",
         model_id,
         request_latency,
         output_tokens,
