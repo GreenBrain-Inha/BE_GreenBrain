@@ -41,7 +41,8 @@ class ChatResponse(BaseModel):
     response_message_id: UUID
     response: str
     carbon_gco2eq: Optional[float]
-    tokens_remaining: float
+    tokens_remaining: int
+    tokens_deducted: int
     exhausted: bool
     session_title: Optional[str]
     model_id: str

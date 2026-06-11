@@ -319,8 +319,8 @@ class ChatService:
         session_id: UUID,
         message: str,
         model_id: str | None = None,
-    ) -> tuple[Message, Message, float, bool, str | None]:
-        """사용자/AI 메시지를 저장하고 탄소 토큰 차감까지 하나의 트랜잭션으로 처리한다."""
+    ) -> tuple[Message, Message, int, int, bool, str | None]:
+        """사용자/AI 메시지를 저장하고 GreenBrain 토큰 차감까지 하나의 트랜잭션으로 처리한다."""
 
         chat_model = resolve_chat_model(model_id)
         session = self.session_service.get_owned(user_id, session_id)
@@ -359,7 +359,7 @@ class ChatService:
         self.db.add(response_message)
         self.db.flush()
 
-        exhausted = token_service.deduct_chat_usage(
+        tokens_deducted, exhausted = token_service.deduct_chat_usage(
             state=state,
             user_id=user_id,
             message_id=response_message.id,
@@ -376,7 +376,14 @@ class ChatService:
         self.db.commit()
         self.db.refresh(user_message)
         self.db.refresh(response_message)
-        return user_message, response_message, tokens_remaining, exhausted, session_title
+        return (
+            user_message,
+            response_message,
+            tokens_remaining,
+            tokens_deducted,
+            exhausted,
+            session_title,
+        )
 
     def list_messages(
         self,

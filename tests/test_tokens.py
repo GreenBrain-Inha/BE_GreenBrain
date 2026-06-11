@@ -8,9 +8,25 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import pytest
+
 from app.models import DailyTokenState
-from app.services.token_service import today_kst
+from app.services.token_service import today_kst, mgco2_from_carbon
 from tests.conftest import auth_headers, create_user
+
+
+@pytest.mark.parametrize(
+    "carbon_gco2eq, expected",
+    [
+        (None, None),     # 탄소 미지원 모델
+        (0.0, 1),         # 최소 1
+        (0.0003, 1),      # 올림 후 최소 1 (ceil(0.3) = 1)
+        (0.25, 250),      # gCO₂eq → mgCO₂eq (0.25g = 250mg)
+        (2.321, 2321),    # 올림 (gemini 예시)
+    ],
+)
+def test_mgco2_from_carbon(carbon_gco2eq: float | None, expected: int | None) -> None:
+    assert mgco2_from_carbon(carbon_gco2eq) == expected
 
 
 EXPECTED_FIELDS = {
@@ -42,7 +58,7 @@ def test_get_today_token_state_creates_default_row(
     data = response.json()["data"]
     assert set(data) == EXPECTED_FIELDS
     assert data["date"] == today_kst().isoformat()
-    assert data["tokens_remaining"] == 150.0
+    assert data["tokens_remaining"] == 150_000
     assert data["upload_reward_given"] == 0.0
     assert data["like_reward_given"] == 0.0
     assert data["total_reward_given"] == 0.0
@@ -63,10 +79,10 @@ def test_get_today_token_state_returns_existing_row(
     state = DailyTokenState(
         user_id=user.id,
         date=today_kst(),
-        tokens_remaining=42.5,
-        upload_reward_given=20.0,
-        like_reward_given=40.0,
-        total_reward_given=60.0,
+        tokens_remaining=42,
+        upload_reward_given=20,
+        like_reward_given=40,
+        total_reward_given=60,
         challenge_count=2,
         updated_at=datetime(2026, 5, 18, 1, 2, 3, tzinfo=timezone.utc),
     )
@@ -79,10 +95,10 @@ def test_get_today_token_state_returns_existing_row(
     data = response.json()["data"]
     assert set(data) == EXPECTED_FIELDS
     assert data["date"] == today_kst().isoformat()
-    assert data["tokens_remaining"] == 42.5
-    assert data["upload_reward_given"] == 20.0
-    assert data["like_reward_given"] == 40.0
-    assert data["total_reward_given"] == 60.0
+    assert data["tokens_remaining"] == 42
+    assert data["upload_reward_given"] == 20
+    assert data["like_reward_given"] == 40
+    assert data["total_reward_given"] == 60
     assert data["challenge_count"] == 2
 
     states = db_session.scalars(select(DailyTokenState)).all()

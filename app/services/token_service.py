@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timezone
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -13,9 +14,10 @@ from app.common.exceptions.custom import TokenExhaustedException as TokenExhaust
 from app.models import DailyTokenState, TokenTransaction
 
 
-DEFAULT_DAILY_TOKENS = 150.0
-UPLOAD_REWARD_AMOUNT = 20.0
-LIKE_REWARD_AMOUNT = 20.0
+# 잔액·차감·보상 단위는 모두 mgCO₂eq(정수). 별도 토큰 단위 없이 탄소 배출량을 그대로 쓴다.
+DEFAULT_DAILY_TOKENS = 150_000  # 하루 기본 150g CO₂eq
+UPLOAD_REWARD_AMOUNT = 20_000   # 업로드 보상 20g CO₂eq
+LIKE_REWARD_AMOUNT = 20_000     # 좋아요 보상 20g CO₂eq
 KST = ZoneInfo("Asia/Seoul")
 
 
@@ -24,6 +26,14 @@ def today_kst(now: datetime | None = None) -> date:
 
     current = now or datetime.now(timezone.utc)
     return current.astimezone(KST).date()
+
+
+def mgco2_from_carbon(carbon_gco2eq: float | None) -> int | None:
+    """탄소 배출량(gCO₂eq)을 차감량(mgCO₂eq 정수)으로 변환한다. 올림, 최소 1."""
+
+    if carbon_gco2eq is None:
+        return None
+    return max(1, math.ceil(carbon_gco2eq * 1000))
 
 
 class TokenService:
@@ -42,9 +52,9 @@ class TokenService:
                 user_id=user_id,
                 date=current_date,
                 tokens_remaining=DEFAULT_DAILY_TOKENS,
-                upload_reward_given=0.0,
-                like_reward_given=0.0,
-                total_reward_given=0.0,
+                upload_reward_given=0,
+                like_reward_given=0,
+                total_reward_given=0,
                 challenge_count=0,
             )
             .on_conflict_do_nothing()
@@ -75,14 +85,15 @@ class TokenService:
         user_id: UUID,
         message_id: UUID,
         carbon_gco2eq: float | None,
-    ) -> bool:
-        """채팅 응답의 탄소 배출량만큼 토큰을 차감하고 소진 여부를 반환한다."""
+    ) -> tuple[int, bool]:
+        """채팅 응답의 탄소 배출량(mgCO₂eq)만큼 차감하고 (차감량, 소진 여부)를 반환한다."""
 
-        if carbon_gco2eq is None:
-            return state.tokens_remaining <= 0
+        deduction = mgco2_from_carbon(carbon_gco2eq)
+        if deduction is None:
+            return 0, state.tokens_remaining <= 0
 
-        deduction = max(carbon_gco2eq, 0.0)
-        state.tokens_remaining = max(state.tokens_remaining - deduction, 0.0)
+        deduction = min(deduction, state.tokens_remaining)
+        state.tokens_remaining = state.tokens_remaining - deduction
         transaction = TokenTransaction(
             user_id=user_id,
             daily_state_date=state.date,
@@ -94,7 +105,7 @@ class TokenService:
             memo="Chat message carbon usage",
         )
         self.db.add(transaction)
-        return state.tokens_remaining <= 0
+        return deduction, state.tokens_remaining <= 0
 
     def grant_upload_reward(
         self,
@@ -102,7 +113,7 @@ class TokenService:
         state: DailyTokenState,
         user_id: UUID,
         photo_id: UUID,
-    ) -> float:
+    ) -> int:
         """챌린지 사진 업로드 보상을 지급하고 실제 지급량을 반환한다."""
 
         reward_amount = UPLOAD_REWARD_AMOUNT
@@ -130,7 +141,7 @@ class TokenService:
         user_id: UUID,
         photo_id: UUID,
         milestone: int,
-    ) -> float:
+    ) -> int:
         """좋아요 milestone 보상을 지급하고 실제 지급량을 반환한다."""
 
         reward_amount = LIKE_REWARD_AMOUNT

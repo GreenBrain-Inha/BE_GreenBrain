@@ -35,7 +35,7 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     monkeypatch.setattr(
         chat_service,
         "generate_ai_response",
-        lambda db, *, session_id, message, model_id: ("AI 답변", 0.5),
+        lambda db, *, session_id, message, model_id: ("AI 답변", 0.25),
     )
     monkeypatch.setattr(chat_service, "_generate_title", lambda message: "테스트 제목")
 
@@ -48,8 +48,10 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     assert response.status_code == 200
     body = response.json()["data"]
     assert body["response"] == "AI 답변"
-    assert body["carbon_gco2eq"] == 0.5
-    assert body["tokens_remaining"] == 149.5
+    assert body["carbon_gco2eq"] == 0.25
+    # 0.25 gCO₂eq = 250 mgCO₂eq 차감
+    assert body["tokens_deducted"] == 250
+    assert body["tokens_remaining"] == 149_750
     assert body["exhausted"] is False
     assert body["session_title"] == "테스트 제목"
     assert body["model_id"] == chat_service.DEFAULT_CHAT_MODEL
@@ -58,15 +60,16 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
 
     state = db_session.get(DailyTokenState, {"user_id": user.id, "date": today_kst()})
     assert state is not None
-    assert state.tokens_remaining == 149.5
+    assert state.tokens_remaining == 149_750
 
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None
     assert transaction.type == "chat_usage"
-    assert transaction.amount == -0.5
+    assert transaction.amount == -250
 
     assistant_message = db_session.get(Message, UUID(body["response_message_id"]))
     assert assistant_message is not None
+    assert assistant_message.carbon_gco2eq == 0.25
     assert assistant_message.model_id == chat_service.DEFAULT_CHAT_MODEL
 
 
