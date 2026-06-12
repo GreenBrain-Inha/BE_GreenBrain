@@ -26,8 +26,8 @@ class DailyTokenState(Base):
     tokens_remaining: Mapped[int] = mapped_column(
         sa.Integer,
         nullable=False,
-        default=150_000,
-        server_default=sa.text("150000"),
+        default=15_000,
+        server_default=sa.text("15000"),
     )
     upload_reward_given: Mapped[int] = mapped_column(
         sa.Integer,

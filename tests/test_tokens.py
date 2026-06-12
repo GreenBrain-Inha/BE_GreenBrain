@@ -58,7 +58,7 @@ def test_get_today_token_state_creates_default_row(
     data = response.json()["data"]
     assert set(data) == EXPECTED_FIELDS
     assert data["date"] == today_kst().isoformat()
-    assert data["tokens_remaining"] == 150_000
+    assert data["tokens_remaining"] == 15_000
     assert data["upload_reward_given"] == 0.0
     assert data["like_reward_given"] == 0.0
     assert data["total_reward_given"] == 0.0

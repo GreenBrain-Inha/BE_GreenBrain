@@ -98,7 +98,7 @@ def test_challenge_generation_upload_feed_like_and_liked_users_flow(
     liker.profile_image_url = "/profiles/liker.png"
     db_session.commit()
     create_profile(db_session, uploader.id)
-    create_daily_state(db_session, uploader.id, tokens_remaining=150000)
+    create_daily_state(db_session, uploader.id, tokens_remaining=15000)
     monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[0])
 
     generate_response = client.post("/api/challenges/generate", headers=auth_headers(uploader))
@@ -221,7 +221,7 @@ def test_third_like_reward_flow_keeps_tokens_above_daily_base(
     db_session.add(photo)
     db_session.commit()
     db_session.refresh(photo)
-    state = create_daily_state(db_session, uploader.id, tokens_remaining=150000)
+    state = create_daily_state(db_session, uploader.id, tokens_remaining=15000)
 
     first_response = client.post(
         f"/api/challenge-photos/{photo.id}/like",
@@ -246,21 +246,21 @@ def test_third_like_reward_flow_keeps_tokens_above_daily_base(
         "liked": True,
         "like_count": 3,
         "reward_given": True,
-        "reward_amount": 20000,
-        "tokens_remaining": 170000,
+        "reward_amount": 2000,
+        "tokens_remaining": 17000,
     }
 
     db_session.refresh(state)
-    assert state.tokens_remaining == 170000
-    assert state.like_reward_given == 20000
-    assert state.total_reward_given == 20000
+    assert state.tokens_remaining == 17000
+    assert state.like_reward_given == 2000
+    assert state.total_reward_given == 2000
 
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None
     assert transaction.user_id == uploader.id
     assert transaction.type == "like_reward"
-    assert transaction.amount == 20000
-    assert transaction.balance_after == 170000
+    assert transaction.amount == 2000
+    assert transaction.balance_after == 17000
     assert transaction.source_type == "photo"
     assert transaction.source_id == photo.id
     assert transaction.milestone == 3

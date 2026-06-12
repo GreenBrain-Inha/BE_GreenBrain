@@ -51,7 +51,7 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
     assert body["carbon_gco2eq"] == 0.25
     # 0.25 gCO₂eq = 250 mgCO₂eq 차감
     assert body["tokens_deducted"] == 250
-    assert body["tokens_remaining"] == 149_750
+    assert body["tokens_remaining"] == 14_750
     assert body["exhausted"] is False
     assert body["session_title"] == "테스트 제목"
     assert body["model_id"] == chat_service.DEFAULT_CHAT_MODEL
@@ -60,7 +60,7 @@ def test_send_message_stores_messages_deducts_tokens_sets_title(
 
     state = db_session.get(DailyTokenState, {"user_id": user.id, "date": today_kst()})
     assert state is not None
-    assert state.tokens_remaining == 149_750
+    assert state.tokens_remaining == 14_750
 
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None

@@ -203,7 +203,7 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=100000)
+    create_daily_state(db_session, user, tokens_remaining=10000)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -219,8 +219,8 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     assert data["challenge"]["completed_at"] is not None
     assert data["reward"] == {
         "type": "upload_reward",
-        "reward_amount": 20000,
-        "tokens_remaining": 120000,
+        "reward_amount": 2000,
+        "tokens_remaining": 12000,
     }
     assert type(data["reward"]["reward_amount"]) is int
     assert type(data["reward"]["tokens_remaining"]) is int
@@ -238,8 +238,8 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None
     assert transaction.type == "upload_reward"
-    assert transaction.amount == 20000
-    assert transaction.balance_after == 120000
+    assert transaction.amount == 2000
+    assert transaction.balance_after == 12000
     assert transaction.source_type == "photo"
     assert transaction.source_id == photo.id
 
@@ -250,7 +250,7 @@ def test_photo_upload_can_recover_tokens_above_daily_base_amount(
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=140000)
+    create_daily_state(db_session, user, tokens_remaining=14000)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -261,8 +261,8 @@ def test_photo_upload_can_recover_tokens_above_daily_base_amount(
     assert response.status_code == 201
     assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
-        "reward_amount": 20000,
-        "tokens_remaining": 160000,
+        "reward_amount": 2000,
+        "tokens_remaining": 16000,
     }
 
 
@@ -272,7 +272,7 @@ def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=150000)
+    create_daily_state(db_session, user, tokens_remaining=15000)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -283,8 +283,8 @@ def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
     assert response.status_code == 201
     assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
-        "reward_amount": 20000,
-        "tokens_remaining": 170000,
+        "reward_amount": 2000,
+        "tokens_remaining": 17000,
     }
     assert db_session.scalar(select(ChallengePhoto)) is not None
 
@@ -377,7 +377,7 @@ def test_storage_write_failure_returns_502_without_db_changes(
 
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=100000)
+    create_daily_state(db_session, user, tokens_remaining=10000)
     try:
         with TestClient(app) as test_client:
             response = test_client.post(
