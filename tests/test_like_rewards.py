@@ -203,7 +203,7 @@ def test_like_reward_is_granted_when_tokens_are_already_at_daily_base_amount(
     liker_2 = create_user(db_session, email="base-liker-2@example.com")
     liker_3 = create_user(db_session, email="base-liker-3@example.com")
     photo = create_challenge_photo(db_session, uploader)
-    state = create_daily_state(db_session, uploader, tokens_remaining=15000)
+    state = create_daily_state(db_session, uploader, tokens_remaining=10000)
     db_session.add_all(
         [
             Like(photo_id=photo.id, liker_user_id=liker_1.id),
@@ -224,17 +224,17 @@ def test_like_reward_is_granted_when_tokens_are_already_at_daily_base_amount(
         "like_count": 3,
         "reward_given": True,
         "reward_amount": 2000,
-        "tokens_remaining": 17000,
+        "tokens_remaining": 12000,
     }
     db_session.refresh(state)
-    assert state.tokens_remaining == 17000
+    assert state.tokens_remaining == 12000
     assert state.like_reward_given == 2000
     assert state.total_reward_given == 2000
 
     transaction = db_session.scalar(select(TokenTransaction))
     assert transaction is not None
     assert transaction.amount == 2000
-    assert transaction.balance_after == 17000
+    assert transaction.balance_after == 12000
     assert transaction.milestone == 3
 
 

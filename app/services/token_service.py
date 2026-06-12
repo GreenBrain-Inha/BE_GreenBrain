@@ -15,7 +15,7 @@ from app.models import DailyTokenState, TokenTransaction
 
 
 # 잔액·차감·보상 단위는 모두 mgCO₂eq(정수). 별도 토큰 단위 없이 탄소 배출량을 그대로 쓴다.
-DEFAULT_DAILY_TOKENS = 15_000  # 하루 기본 15g CO₂eq
+DEFAULT_DAILY_TOKENS = 10_000  # 하루 기본 10g CO₂eq
 UPLOAD_REWARD_AMOUNT = 2_000   # 업로드 보상 2g CO₂eq
 LIKE_REWARD_AMOUNT = 2_000     # 좋아요 보상 2g CO₂eq
 KST = ZoneInfo("Asia/Seoul")

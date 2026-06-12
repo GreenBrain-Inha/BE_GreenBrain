@@ -272,7 +272,7 @@ def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=15000)
+    create_daily_state(db_session, user, tokens_remaining=10000)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -284,7 +284,7 @@ def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
     assert response.json()["data"]["reward"] == {
         "type": "upload_reward",
         "reward_amount": 2000,
-        "tokens_remaining": 17000,
+        "tokens_remaining": 12000,
     }
     assert db_session.scalar(select(ChallengePhoto)) is not None
 
