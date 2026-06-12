@@ -122,7 +122,8 @@ def test_third_like_grants_reward_to_photo_uploader_and_records_transaction(
     )
 
     assert response.status_code == 200
-    assert response.json()["data"] == {
+    data = response.json()["data"]
+    assert data == {
         "photo_id": str(photo.id),
         "liked": True,
         "like_count": 3,
@@ -130,6 +131,8 @@ def test_third_like_grants_reward_to_photo_uploader_and_records_transaction(
         "reward_amount": 20000,
         "tokens_remaining": 120000,
     }
+    assert type(data["reward_amount"]) is int
+    assert type(data["tokens_remaining"]) is int
 
     db_session.refresh(state)
     assert state.tokens_remaining == 120000

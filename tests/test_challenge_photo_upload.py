@@ -222,6 +222,8 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
         "reward_amount": 20000,
         "tokens_remaining": 120000,
     }
+    assert type(data["reward"]["reward_amount"]) is int
+    assert type(data["reward"]["tokens_remaining"]) is int
 
     photo = db_session.scalar(select(ChallengePhoto))
     assert photo is not None

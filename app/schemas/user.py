@@ -12,7 +12,7 @@ from pydantic import AnyUrl, BaseModel, Field
 
 class TodayTokensSummaryResponse(BaseModel):
     date: date
-    tokens_remaining: float
+    tokens_remaining: int
 
 
 class UserMeResponse(BaseModel):
