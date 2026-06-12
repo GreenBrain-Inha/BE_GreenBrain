@@ -11,9 +11,9 @@ class TokenStateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     date: date
-    tokens_remaining: float
-    upload_reward_given: float
-    like_reward_given: float
-    total_reward_given: float
+    tokens_remaining: int
+    upload_reward_given: int
+    like_reward_given: int
+    total_reward_given: int
     challenge_count: int
     updated_at: datetime

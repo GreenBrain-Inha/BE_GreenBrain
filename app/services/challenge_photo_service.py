@@ -224,8 +224,8 @@ class ChallengePhotoService:
         )
 
         reward_given = False
-        reward_amount = 0.0
-        tokens_remaining: float | None = None
+        reward_amount = 0
+        tokens_remaining: int | None = None
 
         if like_count > 0 and like_count % 3 == 0:
             existing_reward = self.db.scalar(
@@ -245,7 +245,7 @@ class ChallengePhotoService:
                     photo_id=photo_id,
                     milestone=like_count,
                 )
-                reward_given = reward_amount > 0.0
+                reward_given = reward_amount > 0
                 tokens_remaining = state.tokens_remaining
 
         try:

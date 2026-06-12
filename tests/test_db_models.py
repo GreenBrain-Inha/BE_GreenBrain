@@ -46,7 +46,7 @@ def test_daily_token_state_has_composite_primary_key() -> None:
         "user_id",
         "date",
     ]
-    assert daily_state.c.tokens_remaining.default.arg == 150.0
+    assert daily_state.c.tokens_remaining.default.arg == 15_000
     assert daily_state.c.upload_reward_given.default.arg == 0.0
     assert daily_state.c.like_reward_given.default.arg == 0.0
     assert daily_state.c.total_reward_given.default.arg == 0.0

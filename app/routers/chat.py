@@ -139,7 +139,7 @@ def send_chat_message(
 ) -> CommonResponse[ChatResponse]:
     """사용자 메시지를 전송하고 AI 응답과 토큰 차감 결과를 반환한다."""
 
-    user_message, response_message, tokens_remaining, exhausted, session_title = (
+    user_message, response_message, tokens_remaining, tokens_deducted, exhausted, session_title = (
         ChatService(db).send_message(
             user_id=current_user.id,
             session_id=session_id,
@@ -155,6 +155,7 @@ def send_chat_message(
             response=response_message.content,
             carbon_gco2eq=response_message.carbon_gco2eq,
             tokens_remaining=tokens_remaining,
+            tokens_deducted=tokens_deducted,
             exhausted=exhausted,
             session_title=session_title,
             model_id=response_message.model_id or DEFAULT_CHAT_MODEL,

@@ -108,7 +108,8 @@ def test_get_me_without_onboarding(client: TestClient, db_session: Session) -> N
     assert data["onboarding_completed"] is False
     assert data["profile"] is None
     assert data["today_tokens"]["date"] == today_kst().isoformat()
-    assert data["today_tokens"]["tokens_remaining"] == 150.0
+    assert data["today_tokens"]["tokens_remaining"] == 15_000
+    assert type(data["today_tokens"]["tokens_remaining"]) is int
 
 
 def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None:
@@ -131,7 +132,8 @@ def test_get_me_with_onboarding(client: TestClient, db_session: Session) -> None
     assert data["profile"]["diet_type"] == "omnivore"
     assert data["profile"]["housing_type"] == "apartment"
     assert data["profile"]["updated_at"] is not None
-    assert data["today_tokens"]["tokens_remaining"] == 150.0
+    assert data["today_tokens"]["tokens_remaining"] == 15_000
+    assert type(data["today_tokens"]["tokens_remaining"]) is int
 
 
 def test_update_me_uploads_profile_image(

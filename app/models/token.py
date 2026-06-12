@@ -23,29 +23,29 @@ class DailyTokenState(Base):
         primary_key=True,
     )
     date: Mapped[date] = mapped_column(sa.Date, primary_key=True)
-    tokens_remaining: Mapped[float] = mapped_column(
-        sa.Float,
+    tokens_remaining: Mapped[int] = mapped_column(
+        sa.Integer,
         nullable=False,
-        default=150.0,
-        server_default=sa.text("150.0"),
+        default=15_000,
+        server_default=sa.text("15000"),
     )
-    upload_reward_given: Mapped[float] = mapped_column(
-        sa.Float,
+    upload_reward_given: Mapped[int] = mapped_column(
+        sa.Integer,
         nullable=False,
-        default=0.0,
-        server_default=sa.text("0.0"),
+        default=0,
+        server_default=sa.text("0"),
     )
-    like_reward_given: Mapped[float] = mapped_column(
-        sa.Float,
+    like_reward_given: Mapped[int] = mapped_column(
+        sa.Integer,
         nullable=False,
-        default=0.0,
-        server_default=sa.text("0.0"),
+        default=0,
+        server_default=sa.text("0"),
     )
-    total_reward_given: Mapped[float] = mapped_column(
-        sa.Float,
+    total_reward_given: Mapped[int] = mapped_column(
+        sa.Integer,
         nullable=False,
-        default=0.0,
-        server_default=sa.text("0.0"),
+        default=0,
+        server_default=sa.text("0"),
     )
     challenge_count: Mapped[int] = mapped_column(
         sa.Integer,
@@ -90,8 +90,8 @@ class TokenTransaction(Base):
     )
     daily_state_date: Mapped[date] = mapped_column(sa.Date, nullable=False)
     type: Mapped[str] = mapped_column(sa.String, nullable=False)
-    amount: Mapped[float] = mapped_column(sa.Float, nullable=False)
-    balance_after: Mapped[float] = mapped_column(sa.Float, nullable=False)
+    amount: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    balance_after: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     source_type: Mapped[Optional[str]] = mapped_column(sa.String, nullable=True)
     source_id: Mapped[Optional[UUID]] = mapped_column(PostgresUUID(as_uuid=True), nullable=True)
     milestone: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)

@@ -50,8 +50,8 @@ class ChallengePhotoUploadChallengeResponse(BaseModel):
 
 class ChallengePhotoUploadRewardResponse(BaseModel):
     type: str
-    reward_amount: float
-    tokens_remaining: float
+    reward_amount: int
+    tokens_remaining: int
 
 
 class ChallengePhotoUploadResponse(BaseModel):
@@ -87,8 +87,8 @@ class ChallengePhotoLikeResponse(BaseModel):
     liked: bool
     like_count: int
     reward_given: bool
-    reward_amount: float
-    tokens_remaining: Optional[float]
+    reward_amount: int
+    tokens_remaining: Optional[int]
 
 
 class ChallengePhotoLikedUserItem(BaseModel):
