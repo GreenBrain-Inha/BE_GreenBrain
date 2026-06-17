@@ -16,7 +16,6 @@ from app.models import DailyTokenState, TokenTransaction
 
 # 잔액·차감·보상 단위는 모두 mgCO₂eq(정수). 별도 토큰 단위 없이 탄소 배출량을 그대로 쓴다.
 DEFAULT_DAILY_TOKENS = 15_000  # 하루 기본 15g CO₂eq
-UPLOAD_REWARD_AMOUNT = 2_000   # 업로드 보상 2g CO₂eq
 LIKE_REWARD_AMOUNT = 2_000     # 좋아요 보상 2g CO₂eq
 KST = ZoneInfo("Asia/Seoul")
 
@@ -106,33 +105,6 @@ class TokenService:
         )
         self.db.add(transaction)
         return deduction, state.tokens_remaining <= 0
-
-    def grant_upload_reward(
-        self,
-        *,
-        state: DailyTokenState,
-        user_id: UUID,
-        photo_id: UUID,
-    ) -> int:
-        """챌린지 사진 업로드 보상을 지급하고 실제 지급량을 반환한다."""
-
-        reward_amount = UPLOAD_REWARD_AMOUNT
-        state.tokens_remaining += reward_amount
-        state.upload_reward_given += reward_amount
-        state.total_reward_given += reward_amount
-
-        transaction = TokenTransaction(
-            user_id=user_id,
-            daily_state_date=state.date,
-            type="upload_reward",
-            amount=reward_amount,
-            balance_after=state.tokens_remaining,
-            source_type="photo",
-            source_id=photo_id,
-            memo="Challenge photo upload reward",
-        )
-        self.db.add(transaction)
-        return reward_amount
 
     def grant_like_reward(
         self,

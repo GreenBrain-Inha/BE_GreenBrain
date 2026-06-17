@@ -103,12 +103,13 @@ def create_token_transaction(
     transaction = TokenTransaction(
         user_id=user.id,
         daily_state_date=state.date,
-        type="upload_reward",
-        amount=20.0,
-        balance_after=170.0,
+        type="like_reward",
+        amount=2000,
+        balance_after=2150,
         source_type="photo",
         source_id=photo.id,
-        memo="upload reward",
+        milestone=3,
+        memo="like reward",
     )
     db_session.add(transaction)
     db_session.commit()

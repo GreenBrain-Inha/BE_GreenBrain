@@ -197,13 +197,13 @@ def test_photo_upload_non_active_challenge_returns_409(
     assert response.status_code == 409
 
 
-def test_photo_upload_active_challenge_succeeds_and_records_reward(
+def test_photo_upload_active_challenge_succeeds_without_reward(
     client: TestClient,
     db_session: Session,
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=10000)
+    state = create_daily_state(db_session, user, tokens_remaining=10000)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -217,40 +217,34 @@ def test_photo_upload_active_challenge_succeeds_and_records_reward(
     assert data["photo"]["file_url"].startswith("/files/challenge-photos/")
     assert data["challenge"]["status"] == "completed"
     assert data["challenge"]["completed_at"] is not None
-    assert data["reward"] == {
-        "type": "upload_reward",
-        "reward_amount": 2000,
-        "tokens_remaining": 12000,
-    }
-    assert type(data["reward"]["reward_amount"]) is int
-    assert type(data["reward"]["tokens_remaining"]) is int
+    assert "reward" not in data
 
     photo = db_session.scalar(select(ChallengePhoto))
     assert photo is not None
     assert photo.challenge_id == challenge.id
     assert photo.file_path.startswith("challenge-photos/")
-    assert photo.upload_rewarded is True
+    assert photo.upload_rewarded is False
 
     db_session.refresh(challenge)
     assert challenge.status == "completed"
     assert challenge.completed_at is not None
 
-    transaction = db_session.scalar(select(TokenTransaction))
-    assert transaction is not None
-    assert transaction.type == "upload_reward"
-    assert transaction.amount == 2000
-    assert transaction.balance_after == 12000
-    assert transaction.source_type == "photo"
-    assert transaction.source_id == photo.id
+    db_session.refresh(state)
+    assert state.tokens_remaining == 10000
+    assert state.upload_reward_given == 0
+    assert state.total_reward_given == 0
+    assert db_session.scalars(select(TokenTransaction)).all() == []
 
 
-def test_photo_upload_can_recover_tokens_above_daily_base_amount(
+@pytest.mark.parametrize("tokens_remaining", [14000, 15000])
+def test_photo_upload_keeps_existing_token_balance(
     client: TestClient,
     db_session: Session,
+    tokens_remaining: int,
 ) -> None:
     user = create_user(db_session)
     challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=14000)
+    state = create_daily_state(db_session, user, tokens_remaining=tokens_remaining)
 
     response = client.post(
         f"/api/challenges/{challenge.id}/photo",
@@ -259,34 +253,13 @@ def test_photo_upload_can_recover_tokens_above_daily_base_amount(
     )
 
     assert response.status_code == 201
-    assert response.json()["data"]["reward"] == {
-        "type": "upload_reward",
-        "reward_amount": 2000,
-        "tokens_remaining": 16000,
-    }
-
-
-def test_photo_upload_grants_reward_when_tokens_are_at_daily_base_amount(
-    client: TestClient,
-    db_session: Session,
-) -> None:
-    user = create_user(db_session)
-    challenge = create_challenge(db_session, user)
-    create_daily_state(db_session, user, tokens_remaining=15000)
-
-    response = client.post(
-        f"/api/challenges/{challenge.id}/photo",
-        headers=auth_headers(user),
-        files=image_upload(),
-    )
-
-    assert response.status_code == 201
-    assert response.json()["data"]["reward"] == {
-        "type": "upload_reward",
-        "reward_amount": 2000,
-        "tokens_remaining": 17000,
-    }
+    assert "reward" not in response.json()["data"]
+    db_session.refresh(state)
+    assert state.tokens_remaining == tokens_remaining
+    assert state.upload_reward_given == 0
+    assert state.total_reward_given == 0
     assert db_session.scalar(select(ChallengePhoto)) is not None
+    assert db_session.scalars(select(TokenTransaction)).all() == []
 
 
 def test_photo_upload_rejects_duplicate_photo(

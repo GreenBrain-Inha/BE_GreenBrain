@@ -26,7 +26,7 @@
 │   │   ├── chat.py              # OpenAI 응답 + 탄소 계산 + 토큰 차감 플로우 조합
 │   │   ├── chat_session.py      # 채팅 세션 CRUD
 │   │   ├── challenge_gen.py     # 챌린지 생성 (프로필 + 이력 컨텍스트)
-│   │   ├── token_account.py     # 토큰 사용 / 사진, 좋아요 보상 계산. 일일 상한 로직 포함
+│   │   ├── token_account.py     # 토큰 사용 / 좋아요 보상 계산. 일일 상한 로직 포함
 │   │   ├── daily_reset.py       # KST 자정 기준 lazy initialization
 │   │   └── storage.py           # FileStorage 인터페이스 + Local Storage 구현, Supabase Storage 확장 예정
 │   ├── models/                  # SQLAlchemy ORM 모델. DB 스키마와 1:1 대응
@@ -208,7 +208,7 @@ users ──────────── user_profiles
 | user_id | UUID FK users.id | 사용자 ID |
 | date | DATE | KST 기준 날짜 |
 | tokens_remaining | FLOAT | 남은 토큰. 기본값 150.0 |
-| upload_reward_given | FLOAT | 오늘 사진 업로드 보상으로 지급된 토큰 합계 |
+| upload_reward_given | FLOAT | 업로드 보상 호환 컬럼. 현재 정책에서는 신규 업로드로 증가하지 않음 |
 | like_reward_given | FLOAT | 오늘 좋아요 보상으로 지급된 토큰 합계. 상한 60 |
 | total_reward_given | FLOAT | 오늘 전체 회복 토큰 합계 |
 | challenge_count | INT | 오늘 생성한 챌린지 수 |
@@ -231,7 +231,7 @@ PRIMARY KEY (user_id, date)
 
 ### token_transactions
 
-토큰 차감, 사진 보상, 좋아요 보상, 일일 초기화 등 모든 토큰 변화 이력을 기록한다.
+토큰 차감, 좋아요 보상, 일일 초기화 등 모든 토큰 변화 이력을 기록한다.
 
 `like_reward_log`는 별도 테이블로 두지 않고, `token_transactions`의 `type = 'like_reward'`, `source_type = 'photo'`, `source_id = photo_id`, `milestone = 3/6/9...` 형태로 통합 관리한다.
 
@@ -240,7 +240,7 @@ PRIMARY KEY (user_id, date)
 | id | UUID PK | 토큰 거래 ID |
 | user_id | UUID FK users.id | 토큰이 변한 사용자 |
 | daily_state_date | DATE | KST 기준 날짜. `daily_token_state.date`와 연결 |
-| type | VARCHAR | chat_usage / upload_reward / like_reward / daily_reset |
+| type | VARCHAR | chat_usage / like_reward / daily_reset |
 | amount | FLOAT | 차감은 음수, 회복은 양수 |
 | balance_after | FLOAT | 반영 후 토큰 잔액 |
 | source_type | VARCHAR NULL | message / photo / challenge / daily_reset |
@@ -252,7 +252,7 @@ PRIMARY KEY (user_id, date)
 주요 규칙:
 
 - `type = chat_usage`이면 `amount`는 음수다.
-- `type = upload_reward`, `like_reward`, `daily_reset`이면 `amount`는 양수 또는 0이다.
+- `type = like_reward`, `daily_reset`이면 `amount`는 양수 또는 0이다.
 - 좋아요 보상은 `milestone` 단위로 중복 지급되지 않아야 한다.
 - 좋아요 보상 중복 방지를 위해 PostgreSQL partial unique index를 사용한다.
 
@@ -267,7 +267,6 @@ WHERE type = 'like_reward';
 | type | amount | source_type | source_id | milestone | 의미 |
 | --- | --- | --- | --- | --- | --- |
 | chat_usage | -0.42 | message | message_id | null | 채팅으로 0.42 토큰 차감 |
-| upload_reward | +20 | photo | photo_id | null | 사진 업로드 보상 지급 |
 | like_reward | +20 | photo | photo_id | 3 | 좋아요 3개 보상 지급 |
 | like_reward | +20 | photo | photo_id | 6 | 좋아요 6개 보상 지급 |
 | daily_reset | +150 | daily_reset | 2026-05-04 | null | 일일 토큰 초기화 |
@@ -303,7 +302,7 @@ WHERE type = 'like_reward';
 
 피드 삭제는 실제 row를 삭제하지 않고 `is_deleted = true`로 처리한다.
 
-이미 지급된 업로드 보상과 좋아요 보상은 삭제 시 회수하지 않는다.
+이미 지급된 좋아요 보상은 삭제 시 회수하지 않는다.
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
@@ -311,7 +310,7 @@ WHERE type = 'like_reward';
 | challenge_id | UUID FK challenges.id UNIQUE | 챌린지 ID. 챌린지당 1장 |
 | user_id | UUID FK users.id | 업로더 ID |
 | file_path | VARCHAR | Supabase Storage 경로 또는 로컬 개발 저장 경로 |
-| upload_rewarded | BOOL | 업로드 보상 지급 여부 |
+| upload_rewarded | BOOL | 업로드 보상 호환 컬럼. 신규 업로드는 false |
 | is_deleted | BOOL | 피드 삭제 여부. 기본값 false |
 | deleted_at | TIMESTAMPTZ NULL | 삭제 시각 |
 | created_at | TIMESTAMPTZ | 생성 시각 |
@@ -322,7 +321,7 @@ WHERE type = 'like_reward';
 - 삭제는 soft delete로 처리한다.
 - 삭제된 사진은 인증 피드에 노출하지 않는다.
 - 삭제된 사진에는 추가 좋아요를 누를 수 없다.
-- 삭제되어도 이미 지급된 업로드 보상과 좋아요 보상은 회수하지 않는다.
+- 삭제되어도 이미 지급된 좋아요 보상은 회수하지 않는다.
 
 ---
 
@@ -451,7 +450,7 @@ UNIQUE (photo_id, liker_user_id)
 
 ---
 
-### 6.3 사진 업로드 → 즉시 토큰 회복
+### 6.3 사진 업로드 → 챌린지 완료 및 피드 노출
 
 ```
 사용자 사진 업로드
@@ -470,20 +469,9 @@ UNIQUE (photo_id, liker_user_id)
          └─ 배포 환경: Supabase Storage
       7. challenge_photos 저장
       8. challenge status = completed
-      9. daily_token_state 행을 row-level lock으로 잠금
-      10. 업로드 보상 계산
-          └─ 기본 +20 토큰
-          └─ 실제 지급량 = min(20, 150.0 - 현재 tokens_remaining)
-      11. tokens_remaining 업데이트
-      12. daily_token_state.upload_reward_given, total_reward_given 업데이트
-      13. token_transactions 저장
-          └─ type = upload_reward
-          └─ amount = 실제 지급된 토큰
-          └─ balance_after = 지급 후 잔액
-          └─ source_type = photo
-          └─ source_id = photo_id
-      14. upload_rewarded = true
-      15. 응답:
+      9. 업로드만으로는 daily_token_state를 변경하지 않음
+      10. 업로드만으로는 token_transactions를 생성하지 않음
+      11. 응답:
           {
             "photo": {
               "id": "photo_id",
@@ -495,11 +483,6 @@ UNIQUE (photo_id, liker_user_id)
               "id": "challenge_id",
               "status": "completed",
               "completed_at": "2026-05-14T09:10:00Z"
-            },
-            "reward": {
-              "type": "upload_reward",
-              "reward_amount": 20,
-              "tokens_remaining": 70
             }
           }
 ```
@@ -628,7 +611,7 @@ type = like_reward인 token_transactions에 대해
 - 삭제는 soft delete로 처리한다.
 - 삭제된 사진은 피드에 노출하지 않는다.
 - 삭제된 사진에는 추가 좋아요를 누를 수 없다.
-- 삭제되어도 이미 지급된 업로드 보상과 좋아요 보상은 회수하지 않는다.
+- 삭제되어도 이미 지급된 좋아요 보상은 회수하지 않는다.
 
 ---
 
