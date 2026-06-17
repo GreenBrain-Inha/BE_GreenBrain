@@ -98,7 +98,7 @@ def test_challenge_generation_upload_feed_like_and_liked_users_flow(
     liker.profile_image_url = "/profiles/liker.png"
     db_session.commit()
     create_profile(db_session, uploader.id)
-    create_daily_state(db_session, uploader.id, tokens_remaining=15000)
+    state = create_daily_state(db_session, uploader.id, tokens_remaining=15000)
     monkeypatch.setattr(challenge_service.random, "choice", lambda candidates: candidates[0])
 
     generate_response = client.post("/api/challenges/generate", headers=auth_headers(uploader))
@@ -134,6 +134,12 @@ def test_challenge_generation_upload_feed_like_and_liked_users_flow(
     assert challenge.status == "completed"
     photo = db_session.get(ChallengePhoto, photo_id)
     assert photo is not None
+    assert photo.upload_rewarded is False
+    db_session.refresh(state)
+    assert state.tokens_remaining == 15000
+    assert state.upload_reward_given == 0
+    assert state.total_reward_given == 0
+    assert db_session.scalars(select(TokenTransaction)).all() == []
 
     feed_before_like_response = client.get(
         "/api/challenges/feed",

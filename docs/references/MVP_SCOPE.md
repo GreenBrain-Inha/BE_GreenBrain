@@ -15,7 +15,7 @@ This document keeps implementation agents focused on the MVP loop.
 - Challenge acceptance and completion through one verification photo.
 - Local filesystem photo storage for MVP.
 - Verification feed with likes.
-- Upload reward and like milestone reward logic.
+- Like milestone reward logic after verification photo upload.
 
 ## Out of Scope
 

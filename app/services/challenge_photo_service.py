@@ -35,7 +35,6 @@ from app.schemas.challenge import (
     ChallengePhotoResponse,
     ChallengePhotoUploadChallengeResponse,
     ChallengePhotoUploadResponse,
-    ChallengePhotoUploadRewardResponse,
 )
 from app.services.storage import FileStorage, StorageWriteError, get_file_storage
 from app.services.token_service import TokenService
@@ -68,7 +67,7 @@ class ChallengePhotoService:
         challenge_id: UUID,
         file: UploadFile,
     ) -> ChallengePhotoUploadResponse:
-        """챌린지 인증 사진을 업로드하고 업로드 보상을 적용한다."""
+        """챌린지 인증 사진을 업로드하고 챌린지를 완료 처리한다."""
 
         challenge = self.db.get(Challenge, challenge_id)
         if challenge is None:
@@ -100,19 +99,12 @@ class ChallengePhotoService:
                 challenge_id=challenge.id,
                 user_id=user_id,
                 file_path=stored_key,
-                upload_rewarded=True,
+                upload_rewarded=False,
             )
             challenge.status = "completed"
             challenge.completed_at = datetime.now(timezone.utc)
             self.db.add(photo)
 
-            token_service = TokenService(self.db)
-            state = token_service.get_or_create_today_state(user_id)
-            reward_amount = token_service.grant_upload_reward(
-                state=state,
-                user_id=user_id,
-                photo_id=photo_id,
-            )
             self.db.commit()
         except SQLAlchemyError:
             self.db.rollback()
@@ -132,11 +124,6 @@ class ChallengePhotoService:
                 id=challenge.id,
                 status=challenge.status,
                 completed_at=challenge.completed_at,
-            ),
-            reward=ChallengePhotoUploadRewardResponse(
-                type="upload_reward",
-                reward_amount=reward_amount,
-                tokens_remaining=state.tokens_remaining,
             ),
         )
 

@@ -48,16 +48,9 @@ class ChallengePhotoUploadChallengeResponse(BaseModel):
     completed_at: datetime
 
 
-class ChallengePhotoUploadRewardResponse(BaseModel):
-    type: str
-    reward_amount: int
-    tokens_remaining: int
-
-
 class ChallengePhotoUploadResponse(BaseModel):
     photo: ChallengePhotoResponse
     challenge: ChallengePhotoUploadChallengeResponse
-    reward: ChallengePhotoUploadRewardResponse
 
 
 class ChallengeFeedItemResponse(BaseModel):
