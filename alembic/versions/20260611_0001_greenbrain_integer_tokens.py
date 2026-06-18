@@ -16,7 +16,7 @@ depends_on = None
 
 
 _DAILY_STATE_COLUMNS = {
-    "tokens_remaining": "150000",
+    "tokens_remaining": "10000",
     "upload_reward_given": "0",
     "like_reward_given": "0",
     "total_reward_given": "0",
@@ -31,7 +31,7 @@ def upgrade() -> None:
             column,
             type_=sa.Integer(),
             existing_type=sa.Float(),
-            postgresql_using=f"round({column})::integer",
+            postgresql_using=f"round({column} * 1000)::integer",
             server_default=sa.text(default),
         )
 
@@ -41,7 +41,7 @@ def upgrade() -> None:
             column,
             type_=sa.Integer(),
             existing_type=sa.Float(),
-            postgresql_using=f"round({column})::integer",
+            postgresql_using=f"round({column} * 1000)::integer",
         )
 
 
@@ -52,6 +52,7 @@ def downgrade() -> None:
             column,
             type_=sa.Float(),
             existing_type=sa.Integer(),
+            postgresql_using=f"({column} / 1000.0)::double precision",
         )
 
     for column, default in _DAILY_STATE_COLUMNS.items():
@@ -60,5 +61,6 @@ def downgrade() -> None:
             column,
             type_=sa.Float(),
             existing_type=sa.Integer(),
-            server_default=sa.text(f"{default}.0"),
+            postgresql_using=f"({column} / 1000.0)::double precision",
+            server_default=sa.text(f"{int(default) / 1000:.1f}"),
         )
